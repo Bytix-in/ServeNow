@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ClipboardList, Clock, CheckCircle, User, Phone, MapPin } from 'lucide-react';
+import { ClipboardList, Clock, CheckCircle, User, Phone, MapPin, X } from 'lucide-react';
 import { supabase, logActivity } from '../lib/supabase';
 
 interface OrderItem {
@@ -28,6 +28,17 @@ interface OrdersProps {
 
 export default function Orders({ restaurantId }: OrdersProps) {
   const [orders, setOrders] = useState<Order[]>([]);
+  // Manual order modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({
+    customer_name: '',
+    customer_phone: '',
+    table_number: '',
+    items: [{ name: '', quantity: 1, price: 0 }],
+    notes: '',
+  });
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
     if (restaurantId) {
@@ -120,6 +131,71 @@ export default function Orders({ restaurantId }: OrdersProps) {
   const readyOrders = orders.filter(order => order.status === 'ready');
   const completedOrders = orders.filter(order => order.status === 'completed');
 
+  // Manual order handlers
+  const handleAddFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, idx?: number, field?: string) => {
+    if (typeof idx === 'number' && field) {
+      // Item field
+      const items = [...addForm.items];
+      items[idx] = { ...items[idx], [field]: field === 'quantity' ? Number(e.target.value) : field === 'price' ? Number(e.target.value) : e.target.value };
+      setAddForm({ ...addForm, items });
+    } else {
+      setAddForm({ ...addForm, [e.target.name]: e.target.value });
+    }
+  };
+
+  const handleAddItem = () => {
+    setAddForm({ ...addForm, items: [...addForm.items, { name: '', quantity: 1, price: 0 }] });
+  };
+  const handleRemoveItem = (idx: number) => {
+    const items = addForm.items.filter((_, i) => i !== idx);
+    setAddForm({ ...addForm, items });
+  };
+
+  const handleAddOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddError(null);
+    setAddLoading(true);
+    // Validation
+    if (!addForm.customer_name.trim() || !addForm.table_number.trim() || addForm.items.length === 0 || addForm.items.some(item => !item.name.trim() || item.quantity < 1 || item.price < 0)) {
+      setAddError('Please fill all required fields and valid items.');
+      setAddLoading(false);
+      return;
+    }
+    try {
+      const total = addForm.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const { error } = await supabase.from('orders').insert([
+        {
+          restaurant_id: restaurantId,
+          customer_name: addForm.customer_name,
+          customer_phone: addForm.customer_phone || null,
+          table_number: Number(addForm.table_number),
+          items: addForm.items.map(item => ({
+            dish_id: '', // Manual orders may not have dish_id
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          total,
+          status: 'pending',
+          order_time: new Date().toISOString(),
+          notes: addForm.notes || null,
+        },
+      ]);
+      if (error) {
+        setAddError('Error adding order: ' + error.message);
+        setAddLoading(false);
+        return;
+      }
+      setShowAddModal(false);
+      setAddForm({ customer_name: '', customer_phone: '', table_number: '', items: [{ name: '', quantity: 1, price: 0 }], notes: '' });
+      await loadOrders();
+    } catch (err: any) {
+      setAddError('Error adding order.');
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -129,6 +205,127 @@ export default function Orders({ restaurantId }: OrdersProps) {
         </div>
         <p className="text-gray-600">Track and manage customer orders from your menu</p>
       </div>
+
+      {/* Add Order Button */}
+      <div className="mb-6">
+        <button
+          className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+          onClick={() => setShowAddModal(true)}
+        >
+          + Add Order
+        </button>
+      </div>
+
+      {/* Add Order Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 relative">
+            <button
+              className="absolute top-3 right-3 text-gray-400 hover:text-black"
+              onClick={() => setShowAddModal(false)}
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-lg font-bold mb-4">Add Manual Order</h3>
+            <form onSubmit={handleAddOrder} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Customer Name<span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  name="customer_name"
+                  value={addForm.customer_name}
+                  onChange={handleAddFormChange}
+                  className="w-full border rounded px-3 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Customer Phone</label>
+                <input
+                  type="text"
+                  name="customer_phone"
+                  value={addForm.customer_phone}
+                  onChange={handleAddFormChange}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Table Number<span className="text-red-500">*</span></label>
+                <input
+                  type="number"
+                  name="table_number"
+                  value={addForm.table_number}
+                  onChange={handleAddFormChange}
+                  className="w-full border rounded px-3 py-2"
+                  required
+                  min={1}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Order Items<span className="text-red-500">*</span></label>
+                <div className="space-y-2">
+                  {addForm.items.map((item, idx) => (
+                    <div key={idx} className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        placeholder="Dish name"
+                        value={item.name}
+                        onChange={e => handleAddFormChange(e, idx, 'name')}
+                        className="border rounded px-2 py-1 flex-1"
+                        required
+                      />
+                      <input
+                        type="number"
+                        placeholder="Qty"
+                        value={item.quantity}
+                        min={1}
+                        onChange={e => handleAddFormChange(e, idx, 'quantity')}
+                        className="border rounded px-2 py-1 w-16"
+                        required
+                      />
+                      <input
+                        type="number"
+                        placeholder="Price"
+                        value={item.price}
+                        min={0}
+                        step={0.01}
+                        onChange={e => handleAddFormChange(e, idx, 'price')}
+                        className="border rounded px-2 py-1 w-20"
+                        required
+                      />
+                      {addForm.items.length > 1 && (
+                        <button type="button" className="text-red-500" onClick={() => handleRemoveItem(idx)} title="Remove item">&times;</button>
+                      )}
+                    </div>
+                  ))}
+                  <button type="button" className="text-blue-600 text-xs mt-1" onClick={handleAddItem}>+ Add Item</button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Notes</label>
+                <textarea
+                  name="notes"
+                  value={addForm.notes}
+                  onChange={handleAddFormChange}
+                  className="w-full border rounded px-3 py-2"
+                  rows={2}
+                />
+              </div>
+              {addError && <div className="text-red-500 text-sm">{addError}</div>}
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+                  disabled={addLoading}
+                >
+                  {addLoading ? 'Adding...' : 'Add Order'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Order Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
