@@ -325,7 +325,45 @@ export default function PublicMenuPage() {
                           ))}
                         </div>
                       )}
-                      <span className="text-lg font-bold text-black mt-auto">${dish.price.toFixed(2)}</span>
+                      <span className="text-lg font-bold text-black mt-auto mb-2">${dish.price.toFixed(2)}</span>
+                      <div className="flex items-center justify-center w-full">
+                        {cart.find(item => item.dish_id === dish.id) ? (
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => updateQuantity(dish.id, -1)}
+                              className="w-8 h-8 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="font-bold text-black min-w-[24px] text-center">
+                              {cart.find(item => item.dish_id === dish.id)?.quantity || 0}
+                            </span>
+                            <button
+                              onClick={() => updateQuantity(dish.id, 1)}
+                              className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => addToCart(dish)}
+                            className="bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-all duration-300 flex items-center space-x-2 font-semibold transform hover:scale-105"
+                          >
+                            {addedItems.has(dish.id) ? (
+                              <>
+                                <CheckCircle className="w-4 h-4" />
+                                <span>Added!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-4 h-4" />
+                                <span>Add</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -466,7 +504,45 @@ export default function PublicMenuPage() {
                           ))}
                         </div>
                       )}
-                      <span className="text-lg font-bold text-black mt-auto">${dish.price.toFixed(2)}</span>
+                      <span className="text-lg font-bold text-black mt-auto mb-2">${dish.price.toFixed(2)}</span>
+                      <div className="flex items-center justify-center w-full">
+                        {cart.find(item => item.dish_id === dish.id) ? (
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => updateQuantity(dish.id, -1)}
+                              className="w-8 h-8 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="font-bold text-black min-w-[24px] text-center">
+                              {cart.find(item => item.dish_id === dish.id)?.quantity || 0}
+                            </span>
+                            <button
+                              onClick={() => updateQuantity(dish.id, 1)}
+                              className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => addToCart(dish)}
+                            className="bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-all duration-300 flex items-center space-x-2 font-semibold transform hover:scale-105"
+                          >
+                            {addedItems.has(dish.id) ? (
+                              <>
+                                <CheckCircle className="w-4 h-4" />
+                                <span>Added!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-4 h-4" />
+                                <span>Add</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
