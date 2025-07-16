@@ -36,6 +36,7 @@ export interface Dish {
   prep_time: number;
   tags: string[];
   created_at: string;
+  image_url?: string; // Added for dish image support
 }
 
 export interface Table {
