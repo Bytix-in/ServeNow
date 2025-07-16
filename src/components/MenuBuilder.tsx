@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Menu, Eye, Copy, Download, CheckCircle, Star, TrendingUp } from 'lucide-react';
 import { supabase, Dish } from '../lib/supabase';
+import { QRCodeCanvas } from 'qrcode.react';
 
 interface MenuBuilderProps {
   restaurantId: string;
@@ -39,10 +40,10 @@ export default function MenuBuilder({ restaurantId, restaurantName }: MenuBuilde
     }
   };
 
-  const toggleTag = (dishId: number, tag: string) => {
+  const toggleTag = (dishId: number | string, tag: string) => {
     const updateDishTags = async () => {
       try {
-        const dish = dishes.find(d => d.id === dishId);
+        const dish = dishes.find(d => String(d.id) === String(dishId));
         if (!dish) return;
 
         const hasTag = dish.tags.includes(tag);
@@ -73,28 +74,7 @@ export default function MenuBuilder({ restaurantId, restaurantName }: MenuBuilde
   const generateMenu = () => {
     const url = `${window.location.origin}/menu/${restaurantId}`;
     setMenuUrl(url);
-    generateQRCode(url);
-  };
-
-  const generateQRCode = (url: string) => {
-    if (qrCodeRef.current && window.QRCode) {
-      qrCodeRef.current.innerHTML = '';
-      
-      window.QRCode.toCanvas(qrCodeRef.current, url, {
-        width: 200,
-        height: 200,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      }, (error: any) => {
-        if (error) {
-          console.error('QR Code generation failed:', error);
-        } else {
-          setQrCodeGenerated(true);
-        }
-      });
-    }
+    setQrCodeGenerated(true);
   };
 
   const copyUrl = async () => {
@@ -111,17 +91,15 @@ export default function MenuBuilder({ restaurantId, restaurantName }: MenuBuilde
 
   const downloadQR = () => {
     if (qrCodeRef.current) {
-      const canvas = qrCodeRef.current.querySelector('canvas');
-      if (canvas) {
-        const link = document.createElement('a');
-        link.download = `${restaurantName}-menu-qr.png`;
-        link.href = canvas.toDataURL();
-        link.click();
-      }
+      const canvas = qrCodeRef.current;
+      const link = document.createElement('a');
+      link.download = `${restaurantName}-menu-qr.png`;
+      link.href = canvas.toDataURL();
+      link.click();
     }
   };
 
-  const dishesByType = dishes.reduce((acc, dish) => {
+  const dishesByType = dishes.reduce<Record<string, Dish[]>>((acc, dish) => {
     if (!acc[dish.type]) {
       acc[dish.type] = [];
     }
@@ -173,17 +151,25 @@ export default function MenuBuilder({ restaurantId, restaurantName }: MenuBuilde
 
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-black mb-4">QR Code</h3>
-          
           <div className="text-center">
-            <div ref={qrCodeRef} className="flex justify-center mb-4">
-              {!qrCodeGenerated && (
+            <div className="flex justify-center mb-4">
+              {qrCodeGenerated && menuUrl ? (
+                <QRCodeCanvas
+                  value={menuUrl}
+                  size={200}
+                  bgColor="#FFFFFF"
+                  fgColor="#000000"
+                  level="H"
+                  includeMargin={true}
+                  ref={qrCodeRef}
+                />
+              ) : (
                 <div className="w-48 h-48 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
                   <p className="text-gray-500 text-sm">Generate menu to create QR code</p>
                 </div>
               )}
             </div>
-            
-            {qrCodeGenerated && (
+            {qrCodeGenerated && menuUrl && (
               <button
                 onClick={downloadQR}
                 className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
@@ -209,6 +195,52 @@ export default function MenuBuilder({ restaurantId, restaurantName }: MenuBuilde
             </a>
           </div>
         )}
+
+        {Object.entries(dishesByType).map(([type, dishesOfType]) => (
+          <div key={type} className="mb-8">
+            <h4 className="text-xl font-bold text-black mb-4 border-b-2 border-gray-200 pb-2 uppercase tracking-wide bg-gray-50 px-2 py-1 rounded">
+              {type}
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {dishesOfType.map((dish) => (
+                <div key={dish.id} className="bg-white rounded-xl shadow-md border border-gray-100 p-4 flex flex-col items-center hover:shadow-lg transition-shadow">
+                  {dish.image_url && (
+                    <img
+                      src={dish.image_url}
+                      alt={dish.name}
+                      className="w-32 h-32 object-cover rounded-lg mb-3 border border-gray-200 shadow-sm"
+                    />
+                  )}
+                  <h5 className="text-lg font-semibold text-black mb-1 text-center">{dish.name}</h5>
+                  <div className="flex items-center justify-center space-x-2 mb-2">
+                    <span className="px-2 py-1 bg-black text-white text-xs rounded-full font-medium">
+                      {dish.type}
+                    </span>
+                    {dish.prep_time > 0 && (
+                      <span className="text-xs text-gray-500">{dish.prep_time} min</span>
+                    )}
+                  </div>
+                  {dish.ingredients && (
+                    <p className="text-sm text-gray-600 mb-1 text-center">{dish.ingredients}</p>
+                  )}
+                  {dish.tags && dish.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2 justify-center">
+                      {dish.tags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <span className="text-lg font-bold text-black mt-auto">${dish.price.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

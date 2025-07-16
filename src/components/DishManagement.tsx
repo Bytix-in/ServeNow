@@ -14,8 +14,10 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
   const [dishIngredients, setDishIngredients] = useState('');
   const [dishPrepTime, setDishPrepTime] = useState('');
   const [dishTags, setDishTags] = useState('');
+  const [dishImageUrl, setDishImageUrl] = useState('');
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const dishTypes = [
     'Appetizers',
@@ -68,25 +70,33 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
   const handleAddDish = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMsg('');
+    let imageUrl = dishImageUrl.trim();
     
     if (dishName && dishType && dishPrice) {
       try {
+        // No upload, just use the provided URL
+        const insertPayload = {
+          restaurant_id: restaurantId,
+          name: dishName,
+          type: dishType,
+          price: parseFloat(dishPrice),
+          ingredients: dishIngredients || null,
+          prep_time: parseInt(dishPrepTime) || 0,
+          tags: dishTags ? dishTags.split(',').map(tag => tag.trim()) : [],
+          image_url: imageUrl || null
+        };
+        console.log('Inserting dish:', insertPayload);
         const { data: newDish, error } = await supabase
           .from('dishes')
-          .insert({
-            restaurant_id: restaurantId,
-            name: dishName,
-            type: dishType,
-            price: parseFloat(dishPrice),
-            ingredients: dishIngredients || null,
-            prep_time: parseInt(dishPrepTime) || 0,
-            tags: dishTags ? dishTags.split(',').map(tag => tag.trim()) : []
-          })
+          .insert(insertPayload)
           .select()
           .single();
 
         if (error) {
-          console.error('Error adding dish:', error);
+          setErrorMsg('Error adding dish: ' + error.message);
+          console.error('Error adding dish:', error, insertPayload);
+          setIsLoading(false);
           return;
         }
 
@@ -113,9 +123,13 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
         setDishIngredients('');
         setDishPrepTime('');
         setDishTags('');
+        setDishImageUrl('');
       } catch (error) {
+        setErrorMsg('Error adding dish: ' + (error instanceof Error ? error.message : String(error)));
         console.error('Error adding dish:', error);
       }
+    } else {
+      setErrorMsg('Please fill in all required fields.');
     }
     
     setIsLoading(false);
@@ -167,6 +181,11 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-semibold text-black mb-6">Add New Dish</h2>
+          {errorMsg && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+              <p className="text-red-700 text-sm">{errorMsg}</p>
+            </div>
+          )}
           
           <form onSubmit={handleAddDish} className="space-y-4">
             <div>
@@ -179,6 +198,27 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
                 placeholder="Enter dish name"
                 required
               />
+            </div>
+            
+            {/* Image URL input instead of file upload */}
+            <div>
+              <label className="block text-sm font-medium text-black mb-2">Image URL (optional)</label>
+              <input
+                type="url"
+                value={dishImageUrl}
+                onChange={e => setDishImageUrl(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                placeholder="https://example.com/image.jpg"
+              />
+              {dishImageUrl && (
+                <div className="mt-2">
+                  <img
+                    src={dishImageUrl}
+                    alt="Preview"
+                    className="h-24 rounded-lg border border-gray-200 object-cover"
+                  />
+                </div>
+              )}
             </div>
             
             <div>
@@ -263,34 +303,43 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
             <div className="space-y-3">
               {dishes.map((dish) => (
                 <div key={dish.id} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="font-semibold text-black">{dish.name}</h4>
-                      <span className="font-bold text-black">${dish.price.toFixed(2)}</span>
-                    </div>
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="px-2 py-1 bg-black text-white text-xs rounded-full font-medium">
-                        {dish.type}
-                      </span>
-                      {dish.prepTime > 0 && (
-                        <span className="text-xs text-gray-500">{dish.prepTime} min</span>
+                  <div className="flex-1 flex items-center">
+                    {dish.image_url && (
+                      <img
+                        src={dish.image_url}
+                        alt={dish.name}
+                        className="h-16 w-16 object-cover rounded-lg border border-gray-200 mr-4"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-semibold text-black">{dish.name}</h4>
+                        <span className="font-bold text-black">${dish.price.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="px-2 py-1 bg-black text-white text-xs rounded-full font-medium">
+                          {dish.type}
+                        </span>
+                        {dish.prep_time > 0 && (
+                          <span className="text-xs text-gray-500">{dish.prep_time} min</span>
+                        )}
+                      </div>
+                      {dish.ingredients && (
+                        <p className="text-sm text-gray-600 mb-1">{dish.ingredients}</p>
+                      )}
+                      {dish.tags && dish.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-1">
+                          {dish.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    {dish.ingredients && (
-                      <p className="text-sm text-gray-600 mb-1">{dish.ingredients}</p>
-                    )}
-                    {dish.tags && dish.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-1">
-                        {dish.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </div>
                   <button
                     onClick={() => handleRemoveDish(dish.id)}
