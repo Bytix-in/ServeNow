@@ -11,6 +11,7 @@ interface Dish {
   ingredients?: string;
   prep_time: number;
   tags: string[];
+  image_url?: string; // Added image_url to Dish interface
 }
 
 interface CartItem {
@@ -47,7 +48,7 @@ export default function PublicMenuPage() {
     tableNumber: '',
     notes: ''
   });
-  const [orderSubmitted, setOrderSubmitted] = useState(false);
+  const [orderSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set());
@@ -292,69 +293,76 @@ export default function PublicMenuPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {specialDishes.map((dish) => (
-                    <div key={dish.id} className="bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <h3 className="text-xl font-bold text-black">{dish.name}</h3>
-                            <Star className="w-5 h-5 text-yellow-500 fill-current" />
-                          </div>
-                          <p className="text-3xl font-bold text-black">${dish.price.toFixed(2)}</p>
-                        </div>
-                      </div>
-                      
-                      {dish.ingredients && (
-                        <p className="text-gray-700 mb-4 text-sm leading-relaxed">{dish.ingredients}</p>
+                    <div key={dish.id} className="bg-white rounded-xl shadow-md border border-gray-100 p-4 flex flex-col items-center hover:shadow-lg transition-shadow">
+                      {dish.image_url && (
+                        <img
+                          src={dish.image_url}
+                          alt={dish.name}
+                          className="w-32 h-32 object-cover rounded-lg mb-3 border border-gray-200 shadow-sm"
+                        />
                       )}
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          {dish.prep_time > 0 && (
-                            <span className="flex items-center space-x-1 text-xs text-gray-600 bg-white px-2 py-1 rounded-full">
-                              <Clock className="w-3 h-3" />
-                              <span>{dish.prep_time} min</span>
-                            </span>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          {cart.find(item => item.dish_id === dish.id) ? (
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => updateQuantity(dish.id, -1)}
-                                className="w-8 h-8 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
-                              >
-                                <Minus className="w-4 h-4" />
-                              </button>
-                              <span className="font-bold text-black min-w-[24px] text-center">
-                                {cart.find(item => item.dish_id === dish.id)?.quantity || 0}
-                              </span>
-                              <button
-                                onClick={() => updateQuantity(dish.id, 1)}
-                                className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors"
-                              >
-                                <Plus className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => addToCart(dish)}
-                              className="bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-all duration-300 flex items-center space-x-2 font-semibold transform hover:scale-105"
+                      <h5 className="text-lg font-semibold text-black mb-1 text-center">{dish.name}</h5>
+                      <div className="flex items-center justify-center space-x-2 mb-2">
+                        <span className="px-2 py-1 bg-black text-white text-xs rounded-full font-medium">
+                          {dish.type}
+                        </span>
+                        {dish.prep_time > 0 && (
+                          <span className="text-xs text-gray-500">{dish.prep_time} min</span>
+                        )}
+                      </div>
+                      {dish.ingredients && (
+                        <p className="text-sm text-gray-600 mb-1 text-center">{dish.ingredients}</p>
+                      )}
+                      {dish.tags && dish.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2 justify-center">
+                          {dish.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium"
                             >
-                              {addedItems.has(dish.id) ? (
-                                <>
-                                  <CheckCircle className="w-4 h-4" />
-                                  <span>Added!</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Plus className="w-4 h-4" />
-                                  <span>Add</span>
-                                </>
-                              )}
-                            </button>
-                          )}
+                              {tag}
+                            </span>
+                          ))}
                         </div>
+                      )}
+                      <span className="text-lg font-bold text-black mt-auto mb-2">${dish.price.toFixed(2)}</span>
+                      <div className="flex items-center justify-center w-full">
+                        {cart.find(item => item.dish_id === dish.id) ? (
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => updateQuantity(dish.id, -1)}
+                              className="w-8 h-8 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="font-bold text-black min-w-[24px] text-center">
+                              {cart.find(item => item.dish_id === dish.id)?.quantity || 0}
+                            </span>
+                            <button
+                              onClick={() => updateQuantity(dish.id, 1)}
+                              className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => addToCart(dish)}
+                            className="bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-all duration-300 flex items-center space-x-2 font-semibold transform hover:scale-105"
+                          >
+                            {addedItems.has(dish.id) ? (
+                              <>
+                                <CheckCircle className="w-4 h-4" />
+                                <span>Added!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-4 h-4" />
+                                <span>Add</span>
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -462,93 +470,78 @@ export default function PublicMenuPage() {
                   <span className="ml-3 text-lg font-normal text-gray-500">({typeDishes.length} items)</span>
                 </h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {typeDishes.map((dish) => (
-                    <div key={dish.id} className="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-lg transition-all transform hover:-translate-y-1">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <h3 className="text-xl font-bold text-black">{dish.name}</h3>
-                            {dish.tags.includes('Special Today') && (
-                              <Star className="w-5 h-5 text-yellow-500 fill-current" />
-                            )}
-                            {dish.tags.includes('Most Ordered') && (
-                              <TrendingUp className="w-5 h-5 text-green-500" />
-                            )}
-                          </div>
-                          <p className="text-2xl font-bold text-black">${dish.price.toFixed(2)}</p>
-                        </div>
-                      </div>
-                      
-                      {dish.ingredients && (
-                        <p className="text-gray-600 mb-4 text-sm leading-relaxed">{dish.ingredients}</p>
+                    <div key={dish.id} className="bg-white rounded-xl shadow-md border border-gray-100 p-4 flex flex-col items-center hover:shadow-lg transition-shadow">
+                      {dish.image_url && (
+                        <img
+                          src={dish.image_url}
+                          alt={dish.name}
+                          className="w-32 h-32 object-cover rounded-lg mb-3 border border-gray-200 shadow-sm"
+                        />
                       )}
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          {dish.prep_time > 0 && (
-                            <span className="flex items-center space-x-1 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                              <Clock className="w-3 h-3" />
-                              <span>{dish.prep_time} min</span>
-                            </span>
-                          )}
-                          
-                          {dish.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {dish.tags.map((tag, index) => (
-                                <span
-                                  key={index}
-                                  className={`px-2 py-1 text-xs rounded-full font-medium ${
-                                    tag === 'Special Today' ? 'bg-yellow-100 text-yellow-800' :
-                                    tag === 'Most Ordered' ? 'bg-green-100 text-green-800' :
-                                    'bg-blue-100 text-blue-800'
-                                  }`}
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          {cart.find(item => item.dish_id === dish.id) ? (
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => updateQuantity(dish.id, -1)}
-                                className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors"
-                              >
-                                <Minus className="w-4 h-4" />
-                              </button>
-                              <span className="font-bold text-black min-w-[24px] text-center">
-                                {cart.find(item => item.dish_id === dish.id)?.quantity || 0}
-                              </span>
-                              <button
-                                onClick={() => updateQuantity(dish.id, 1)}
-                                className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors"
-                              >
-                                <Plus className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => addToCart(dish)}
-                              className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-all duration-300 flex items-center space-x-1 font-semibold transform hover:scale-105"
+                      <h5 className="text-lg font-semibold text-black mb-1 text-center">{dish.name}</h5>
+                      <div className="flex items-center justify-center space-x-2 mb-2">
+                        <span className="px-2 py-1 bg-black text-white text-xs rounded-full font-medium">
+                          {dish.type}
+                        </span>
+                        {dish.prep_time > 0 && (
+                          <span className="text-xs text-gray-500">{dish.prep_time} min</span>
+                        )}
+                      </div>
+                      {dish.ingredients && (
+                        <p className="text-sm text-gray-600 mb-1 text-center">{dish.ingredients}</p>
+                      )}
+                      {dish.tags && dish.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2 justify-center">
+                          {dish.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium"
                             >
-                              {addedItems.has(dish.id) ? (
-                                <>
-                                  <CheckCircle className="w-4 h-4" />
-                                  <span>Added!</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Plus className="w-4 h-4" />
-                                  <span>Add</span>
-                                </>
-                              )}
-                            </button>
-                          )}
+                              {tag}
+                            </span>
+                          ))}
                         </div>
+                      )}
+                      <span className="text-lg font-bold text-black mt-auto mb-2">${dish.price.toFixed(2)}</span>
+                      <div className="flex items-center justify-center w-full">
+                        {cart.find(item => item.dish_id === dish.id) ? (
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => updateQuantity(dish.id, -1)}
+                              className="w-8 h-8 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="font-bold text-black min-w-[24px] text-center">
+                              {cart.find(item => item.dish_id === dish.id)?.quantity || 0}
+                            </span>
+                            <button
+                              onClick={() => updateQuantity(dish.id, 1)}
+                              className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center hover:bg-gray-800 transition-colors"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => addToCart(dish)}
+                            className="bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-all duration-300 flex items-center space-x-2 font-semibold transform hover:scale-105"
+                          >
+                            {addedItems.has(dish.id) ? (
+                              <>
+                                <CheckCircle className="w-4 h-4" />
+                                <span>Added!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-4 h-4" />
+                                <span>Add</span>
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
