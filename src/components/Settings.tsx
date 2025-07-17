@@ -1,7 +1,87 @@
-import React from 'react';
-import { Settings as SettingsIcon, User, Bell, Shield, Palette } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Settings as SettingsIcon, User, Bell, Palette } from 'lucide-react';
+import { supabase, Restaurant as RestaurantType } from '../lib/supabase';
 
 export default function Settings() {
+  const [restaurant, setRestaurant] = useState<RestaurantType | null>(null);
+  const [form, setForm] = useState({
+    owner_name: '',
+    email: '',
+    phone_number: '',
+    address: '',
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchRestaurant = async () => {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+      try {
+        const restaurantId = localStorage.getItem('currentRestaurantId');
+        if (!restaurantId) {
+          setError('Restaurant ID not found. Please log in again.');
+          setLoading(false);
+          return;
+        }
+        const { data, error } = await supabase
+          .from('restaurants')
+          .select('*')
+          .eq('id', restaurantId)
+          .single();
+        if (error || !data) {
+          setError('Failed to fetch restaurant details.');
+          setLoading(false);
+          return;
+        }
+        setRestaurant(data);
+        setForm({
+          owner_name: data.owner_name || '',
+          email: data.email || '',
+          phone_number: data.phone_number || '',
+          address: data.address || '',
+        });
+      } catch (err) {
+        setError('An error occurred while fetching restaurant details.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRestaurant();
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    if (!restaurant || !restaurant.id) return;
+    try {
+      const { error } = await supabase
+        .from('restaurants')
+        .update({
+          owner_name: form.owner_name,
+          email: form.email,
+          phone_number: form.phone_number,
+          address: form.address,
+        })
+        .eq('id', restaurant.id);
+      if (error) {
+        setError('Failed to update profile.');
+        return;
+      }
+      setSuccess('Profile updated successfully!');
+      setRestaurant({ ...restaurant, ...form });
+    } catch (err) {
+      setError('An error occurred while updating profile.');
+    }
+  };
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -19,38 +99,86 @@ export default function Settings() {
             <User className="w-5 h-5 text-black" />
             <h2 className="text-xl font-semibold text-black">Profile Settings</h2>
           </div>
-          
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Manager Name</label>
-              <input
-                type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                placeholder="Enter manager name"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Email</label>
-              <input
-                type="email"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                placeholder="Enter email address"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Phone</label>
-              <input
-                type="tel"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                placeholder="Enter phone number"
-              />
-            </div>
-            
-            <button className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors">
-              Update Profile
-            </button>
+            {loading ? (
+              <div className="text-gray-500">Loading profile...</div>
+            ) : error ? (
+              <div className="text-red-600">{error}</div>
+            ) : restaurant ? (
+              <form onSubmit={handleUpdate} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">Restaurant Name</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                    value={restaurant.restaurant_name}
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">Manager Name</label>
+                  <input
+                    type="text"
+                    name="owner_name"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    value={form.owner_name}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    value={form.email}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">Phone</label>
+                  <input
+                    type="tel"
+                    name="phone_number"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    value={form.phone_number}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">Address</label>
+                  <input
+                    type="text"
+                    name="address"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    value={form.address}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">Cuisine Tags</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                    value={restaurant.cuisine_tags}
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">Seating Capacity</label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                    value={restaurant.seating_capacity}
+                    readOnly
+                  />
+                </div>
+                {success && <div className="text-green-600">{success}</div>}
+                <button type="submit" className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors">
+                  Update Profile
+                </button>
+              </form>
+            ) : null}
           </div>
         </div>
 
@@ -60,7 +188,6 @@ export default function Settings() {
             <Bell className="w-5 h-5 text-black" />
             <h2 className="text-xl font-semibold text-black">Notifications</h2>
           </div>
-          
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -72,7 +199,6 @@ export default function Settings() {
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
               </label>
             </div>
-            
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-black">Order Updates</p>
@@ -83,7 +209,6 @@ export default function Settings() {
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
               </label>
             </div>
-            
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-black">Daily Reports</p>
@@ -97,54 +222,12 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Security Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center space-x-3 mb-6">
-            <Shield className="w-5 h-5 text-black" />
-            <h2 className="text-xl font-semibold text-black">Security</h2>
-          </div>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Current Password</label>
-              <input
-                type="password"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                placeholder="Enter current password"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">New Password</label>
-              <input
-                type="password"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                placeholder="Enter new password"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Confirm Password</label>
-              <input
-                type="password"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                placeholder="Confirm new password"
-              />
-            </div>
-            
-            <button className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors">
-              Change Password
-            </button>
-          </div>
-        </div>
-
         {/* Display Settings */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center space-x-3 mb-6">
             <Palette className="w-5 h-5 text-black" />
             <h2 className="text-xl font-semibold text-black">Display</h2>
           </div>
-          
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-black mb-2">Language</label>
@@ -155,7 +238,6 @@ export default function Settings() {
                 <option>German</option>
               </select>
             </div>
-            
             <div>
               <label className="block text-sm font-medium text-black mb-2">Time Zone</label>
               <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none">
@@ -165,7 +247,6 @@ export default function Settings() {
                 <option>UTC-8 (Pacific Time)</option>
               </select>
             </div>
-            
             <div>
               <label className="block text-sm font-medium text-black mb-2">Date Format</label>
               <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none">
@@ -174,7 +255,6 @@ export default function Settings() {
                 <option>YYYY-MM-DD</option>
               </select>
             </div>
-            
             <button className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors">
               Save Settings
             </button>
