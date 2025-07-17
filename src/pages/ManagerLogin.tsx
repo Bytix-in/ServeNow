@@ -30,6 +30,7 @@ export default function ManagerLogin() {
 
       if (error || !restaurant) {
         setError('Invalid Manager ID or Access Key. Please check your credentials.');
+        setIsLoading(false);
         return;
       }
 
@@ -63,12 +64,12 @@ export default function ManagerLogin() {
       localStorage.setItem('currentManagerId', formData.managerId);
       
       navigate('/manager/dashboard');
+      setIsLoading(false);
     } catch (err) {
       setError('Login failed. Please try again.');
+      setIsLoading(false);
       console.error('Manager login error:', err);
     }
-    
-    setIsLoading(false);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,6 +83,15 @@ export default function ManagerLogin() {
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="mb-4 flex items-center text-blue-600 hover:text-blue-800 font-medium focus:outline-none"
+            aria-label="Go back"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+            Back
+          </button>
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <User className="w-8 h-8 text-white" />
