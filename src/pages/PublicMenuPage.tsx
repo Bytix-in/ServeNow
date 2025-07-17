@@ -52,6 +52,7 @@ export default function PublicMenuPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set());
+  const [removedItemName, setRemovedItemName] = useState<string | null>(null);
 
   useEffect(() => {
     if (managerId) {
@@ -96,7 +97,8 @@ export default function PublicMenuPage() {
   };
 
   const addToCart = (dish: Dish) => {
-    // Show brief "Added!" feedback
+    // Prevent negative or zero quantity add
+    if (dish.price < 0) return;
     setAddedItems(prev => new Set(prev).add(dish.id));
     setTimeout(() => {
       setAddedItems(prev => {
@@ -110,7 +112,7 @@ export default function PublicMenuPage() {
     if (existingItem) {
       setCart(cart.map(item =>
         item.dish_id === dish.id
-          ? { ...item, quantity: item.quantity + 1 }
+          ? { ...item, quantity: Math.max(item.quantity + 1, 1) }
           : item
       ));
     } else {
@@ -124,13 +126,23 @@ export default function PublicMenuPage() {
   };
 
   const updateQuantity = (dishId: string, change: number) => {
-    setCart(cart.map(item => {
-      if (item.dish_id === dishId) {
-        const newQuantity = item.quantity + change;
-        return newQuantity > 0 ? { ...item, quantity: newQuantity } : item;
+    setCart(prevCart => {
+      const updatedCart = prevCart.map(item => {
+        if (item.dish_id === dishId) {
+          const newQuantity = item.quantity + change;
+          // Prevent negative quantities
+          return newQuantity > 0 ? { ...item, quantity: newQuantity } : null;
+        }
+        return item;
+      }).filter((item): item is CartItem => item !== null && item.quantity > 0);
+      // If item was removed, show toast
+      const originalItem = prevCart.find(item => item.dish_id === dishId);
+      if (originalItem && originalItem.quantity + change <= 0) {
+        setRemovedItemName(originalItem.name);
+        setTimeout(() => setRemovedItemName(null), 2000);
       }
-      return item;
-    }).filter(item => item.quantity > 0));
+      return updatedCart;
+    });
   };
 
   const getTotalPrice = () => {
@@ -234,6 +246,12 @@ export default function PublicMenuPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+      {/* Toast for item removal */}
+      {removedItemName && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-8 py-4 rounded-lg shadow-lg z-50 animate-fade-out">
+          <p className="font-semibold text-center">Removed <span className="font-bold">{removedItemName}</span> from cart</p>
+        </div>
+      )}
       {/* Sticky Cart Button */}
       {cart.length > 0 && (
         <div className="fixed top-4 right-4 z-50">
