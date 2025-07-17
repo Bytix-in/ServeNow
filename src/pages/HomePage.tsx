@@ -139,33 +139,36 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="section-padding">
+      {/* How It Works Section (replaces Testimonials) */}
+      <section className="section-padding bg-white">
         <div className="max-w-7xl mx-auto container-padding">
           <div className="text-center mb-16">
-            <h2 className="heading-lg mb-6">What Our Customers Say</h2>
-            <p className="text-body max-w-3xl mx-auto">
-              Don't just take our word for it. Here's what restaurant owners are saying about ServeNow.
+            <h2 className="heading-lg mb-6 text-black">How It Works</h2>
+            <p className="text-body max-w-3xl mx-auto text-gray-700">
+              Experience seamless dining in just a few simple steps.
             </p>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div key={index} className="card p-8 text-center">
-                <div className="flex justify-center mb-6">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-black fill-current" />
-                  ))}
-                </div>
-                <blockquote className="text-gray-700 font-medium text-lg mb-6 leading-relaxed">
-                  "{testimonial.quote}"
-                </blockquote>
-                <div>
-                  <div className="font-bold text-black text-lg">{testimonial.author}</div>
-                  <div className="text-gray-600 font-medium">{testimonial.role}</div>
-                </div>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div className="flex flex-col items-center text-center p-6 rounded-xl shadow bg-white solid-white-card relative z-10">
+              <Globe className="w-10 h-10 text-black mb-4" />
+              <h3 className="font-bold text-lg mb-2 text-black">Scan QR Code</h3>
+              <p className="text-gray-600 text-base">Use your phone to scan the QR code at your table to access the digital menu instantly.</p>
+            </div>
+            <div className="flex flex-col items-center text-center p-6 rounded-xl shadow bg-white solid-white-card relative z-10">
+              <ChefHat className="w-10 h-10 text-black mb-4" />
+              <h3 className="font-bold text-lg mb-2 text-black">Browse Menu & Order</h3>
+              <p className="text-gray-600 text-base">Explore the menu, customize your order, and send it directly to the kitchen—no waiting required.</p>
+            </div>
+            <div className="flex flex-col items-center text-center p-6 rounded-xl shadow bg-white solid-white-card relative z-10">
+              <Clock className="w-10 h-10 text-black mb-4" />
+              <h3 className="font-bold text-lg mb-2 text-black">Track Order in Real-Time</h3>
+              <p className="text-gray-600 text-base">Watch your order status update live, from preparation to serving, right on your device.</p>
+            </div>
+            <div className="flex flex-col items-center text-center p-6 rounded-xl shadow bg-white solid-white-card relative z-10">
+              <Star className="w-10 h-10 text-black mb-4" />
+              <h3 className="font-bold text-lg mb-2 text-black">Pay & Enjoy</h3>
+              <p className="text-gray-600 text-base">Pay securely online or offline, then sit back and enjoy your meal—hassle free!</p>
+            </div>
           </div>
         </div>
       </section>
