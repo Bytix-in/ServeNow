@@ -30,6 +30,7 @@ export default function AdminLogin() {
 
       if (adminError || !adminData) {
         setError('Invalid admin credentials. Please check your email and password.');
+        setIsLoading(false);
         console.error('Admin login error:', adminError);
         return;
       }
@@ -45,13 +46,13 @@ export default function AdminLogin() {
       });
       
       navigate('/admin/dashboard');
+      setIsLoading(false);
       
     } catch (err) {
       setError('Login failed. Please try again.');
+      setIsLoading(false);
       console.error('Login error:', err);
     }
-    
-    setIsLoading(false);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,6 +66,15 @@ export default function AdminLogin() {
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-lg shadow-lg p-8">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="mb-4 flex items-center text-black hover:text-gray-700 font-medium focus:outline-none"
+            aria-label="Go back"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+            Back
+          </button>
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-black mb-2">ServeNow Admin</h1>
             <p className="text-gray-600">Sign in to your admin account</p>
