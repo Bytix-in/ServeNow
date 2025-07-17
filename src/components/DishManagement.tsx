@@ -25,6 +25,7 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
     dishPrepTime: '',
     dishImageUrl: '',
   });
+  const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
 
   const dishTypes = [
     'Appetizers',
@@ -192,6 +193,92 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
     setIsLoading(false);
   };
 
+  const handleEditDish = (dish: Dish) => {
+    setSelectedDish(dish);
+    setDishName(dish.name || '');
+    setDishType(dish.type || '');
+    setDishPrice(dish.price ? dish.price.toString() : '');
+    setDishIngredients(dish.ingredients || '');
+    setDishPrepTime(dish.prep_time ? dish.prep_time.toString() : '');
+    setDishTags(dish.tags ? dish.tags.join(', ') : '');
+    setDishImageUrl(dish.image_url || '');
+    setFieldErrors({
+      dishName: '',
+      dishType: '',
+      dishPrice: '',
+      dishPrepTime: '',
+      dishImageUrl: '',
+    });
+    setErrorMsg('');
+  };
+
+  const handleCancelEdit = () => {
+    setSelectedDish(null);
+    setDishName('');
+    setDishType('');
+    setDishPrice('');
+    setDishIngredients('');
+    setDishPrepTime('');
+    setDishTags('');
+    setDishImageUrl('');
+    setFieldErrors({
+      dishName: '',
+      dishType: '',
+      dishPrice: '',
+      dishPrepTime: '',
+      dishImageUrl: '',
+    });
+    setErrorMsg('');
+  };
+
+  const handleUpdateDish = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    if (!selectedDish) return;
+    if (!validateForm()) {
+      return;
+    }
+    setIsLoading(true);
+    let imageUrl = dishImageUrl.trim();
+    try {
+      const updatePayload = {
+        name: dishName,
+        type: dishType,
+        price: parseFloat(dishPrice),
+        ingredients: dishIngredients || null,
+        prep_time: parseInt(dishPrepTime) || 0,
+        tags: dishTags ? dishTags.split(',').map(tag => tag.trim()) : [],
+        image_url: imageUrl || null
+      };
+      const { error } = await supabase
+        .from('dishes')
+        .update(updatePayload)
+        .eq('id', selectedDish.id);
+      if (error) {
+        setErrorMsg('Error updating dish: ' + error.message);
+        setIsLoading(false);
+        return;
+      }
+      // Log dish update activity
+      const managerId = localStorage.getItem('currentManagerId');
+      await logActivity(
+        'dish_updated',
+        {
+          dish_name: dishName,
+          dish_type: dishType,
+          price: parseFloat(dishPrice)
+        },
+        restaurantId,
+        managerId || undefined
+      );
+      await loadDishes();
+      handleCancelEdit();
+    } catch (error) {
+      setErrorMsg('Error updating dish: ' + (error instanceof Error ? error.message : String(error)));
+    }
+    setIsLoading(false);
+  };
+
   const handleRemoveDish = async (dishId: string) => {
     try {
       const dish = dishes.find(d => d.id === dishId);
@@ -237,14 +324,14 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-black mb-6">Add New Dish</h2>
+          <h2 className="text-xl font-semibold text-black mb-6">{selectedDish ? 'Edit Dish' : 'Add New Dish'}</h2>
           {errorMsg && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
               <p className="text-red-700 text-sm">{errorMsg}</p>
             </div>
           )}
           
-          <form onSubmit={handleAddDish} className="space-y-4">
+          <form onSubmit={selectedDish ? handleUpdateDish : handleAddDish} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-black mb-2">Dish Name <span className="text-red-500">*</span></label>
               <input
@@ -348,14 +435,25 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
               <p className="text-xs text-gray-500 mt-1">Separate multiple tags with commas</p>
             </div>
             
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{isLoading ? 'Adding...' : 'Add Dish'}</span>
-            </button>
+            <div className="flex space-x-2">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{isLoading ? (selectedDish ? 'Updating...' : 'Adding...') : (selectedDish ? 'Update Dish' : 'Add Dish')}</span>
+              </button>
+              {selectedDish && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="w-full bg-gray-200 text-black py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </form>
         </div>
 
@@ -404,12 +502,22 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
                       )}
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleRemoveDish(dish.id)}
-                    className="ml-4 p-2 text-gray-400 hover:text-red-600 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center ml-4 space-x-2">
+                    <button
+                      onClick={() => handleEditDish(dish)}
+                      className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                      title="Edit Dish"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-1.414.828l-4 1a1 1 0 01-1.213-1.213l1-4a4 4 0 01.828-1.414z" /></svg>
+                    </button>
+                    <button
+                      onClick={() => handleRemoveDish(dish.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                      title="Delete Dish"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
