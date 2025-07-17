@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, Users, Store, Activity, Calendar } from 'lucide-react';
 import { Restaurant } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 interface AdminAnalyticsProps {
   restaurants: Restaurant[];
@@ -17,83 +18,113 @@ export default function AdminAnalytics({ restaurants }: AdminAnalyticsProps) {
     cuisineDistribution: {} as Record<string, number>,
     monthlyGrowth: [] as { month: string; count: number }[]
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    calculateAnalytics(restaurants);
+    fetchAnalytics(restaurants);
   }, [restaurants]);
 
-  const calculateAnalytics = (restaurantData: Restaurant[]) => {
-    // Basic counts
-    const totalRestaurants = restaurantData.length;
-    const activeRestaurants = restaurantData.filter(r => r.isActive).length;
-    const totalSeatingCapacity = restaurantData.reduce((sum, r) => sum + r.seating_capacity, 0);
+  const fetchAnalytics = async (restaurantData: Restaurant[]) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Basic counts
+      const totalRestaurants = restaurantData.length;
+      const activeRestaurants = restaurantData.filter(r => r.is_active).length;
+      const totalSeatingCapacity = restaurantData.reduce((sum, r) => sum + r.seating_capacity, 0);
 
-    // Count dishes and tables across all restaurants
-    let totalDishes = 0;
-    let totalTables = 0;
-    
-    restaurantData.forEach(restaurant => {
-      const dishes = localStorage.getItem(`restaurantDishes_${restaurant.manager_id}`);
-      const tables = localStorage.getItem(`restaurantTables_${restaurant.manager_id}`);
-      
-      if (dishes) {
-        totalDishes += JSON.parse(dishes).length;
-      }
-      if (tables) {
-        totalTables += JSON.parse(tables).length;
-      }
-    });
+      // Fetch all dishes and tables for all restaurants
+      const restaurantIds = restaurantData.map(r => r.id);
+      let totalDishes = 0;
+      let totalTables = 0;
 
-    // Recent logins (last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const recentLogins = restaurantData.filter(r => 
-      r.lastLogin && new Date(r.lastLogin) > sevenDaysAgo
-    ).length;
+      // Fetch all dishes
+      const { data: allDishes, error: dishesError } = await supabase
+        .from('dishes')
+        .select('id, restaurant_id');
+      if (dishesError) throw new Error('Failed to fetch dishes: ' + dishesError.message);
+      // Fetch all tables
+      const { data: allTables, error: tablesError } = await supabase
+        .from('tables')
+        .select('id, restaurant_id');
+      if (tablesError) throw new Error('Failed to fetch tables: ' + tablesError.message);
+      // Filter by restaurantIds
+      totalDishes = (allDishes || []).filter(d => restaurantIds.includes(d.restaurant_id)).length;
+      totalTables = (allTables || []).filter(t => restaurantIds.includes(t.restaurant_id)).length;
+      // Log API responses for debugging
+      console.log('Dishes:', allDishes);
+      console.log('Tables:', allTables);
 
-    // Cuisine distribution
-    const cuisineDistribution: Record<string, number> = {};
-    restaurantData.forEach(restaurant => {
-      const cuisines = restaurant.cuisine_tags.split(',').map(c => c.trim());
-      cuisines.forEach(cuisine => {
-        cuisineDistribution[cuisine] = (cuisineDistribution[cuisine] || 0) + 1;
+      // Recent logins (last 7 days)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const recentLogins = restaurantData.filter(r =>
+        r.last_login && new Date(r.last_login) > sevenDaysAgo
+      ).length;
+
+      // Cuisine distribution
+      const cuisineDistribution: Record<string, number> = {};
+      restaurantData.forEach(restaurant => {
+        const cuisines = restaurant.cuisine_tags.split(',').map(c => c.trim());
+        cuisines.forEach(cuisine => {
+          cuisineDistribution[cuisine] = (cuisineDistribution[cuisine] || 0) + 1;
+        });
       });
-    });
 
-    // Monthly growth (last 6 months)
-    const monthlyGrowth = [];
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-      
-      const count = restaurantData.filter(r => {
-        const createdDate = new Date(r.created_at);
-        return createdDate >= monthStart && createdDate <= monthEnd;
-      }).length;
-      
-      monthlyGrowth.push({
-        month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-        count
+      // Monthly growth (last 6 months)
+      const monthlyGrowth = [];
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(date.getMonth() - i);
+        const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+        const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        const count = restaurantData.filter(r => {
+          const createdDate = new Date(r.created_at);
+          return createdDate >= monthStart && createdDate <= monthEnd;
+        }).length;
+        monthlyGrowth.push({
+          month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          count
+        });
+      }
+
+      setAnalytics({
+        totalRestaurants,
+        activeRestaurants,
+        totalDishes,
+        totalTables,
+        totalSeatingCapacity,
+        recentLogins,
+        cuisineDistribution,
+        monthlyGrowth
       });
+    } catch (err: any) {
+      setError(err.message || 'Failed to load analytics');
+    } finally {
+      setLoading(false);
     }
-
-    setAnalytics({
-      totalRestaurants,
-      activeRestaurants,
-      totalDishes,
-      totalTables,
-      totalSeatingCapacity,
-      recentLogins,
-      cuisineDistribution,
-      monthlyGrowth
-    });
   };
 
   const topCuisines = Object.entries(analytics.cuisineDistribution)
     .sort(([,a], [,b]) => b - a)
     .slice(0, 5);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin mr-3"></div>
+        <span className="text-gray-700">Loading analytics...</span>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+        <p>Error: {error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
