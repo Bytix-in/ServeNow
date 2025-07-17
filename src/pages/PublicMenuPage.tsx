@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { ShoppingCart, Plus, Minus, Star, TrendingUp, Clock, User, Phone, MapPin, CheckCircle } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ShoppingCart, Plus, Minus, Star, TrendingUp, Clock, User, Phone, MapPin, CheckCircle, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface Dish {
@@ -38,6 +38,7 @@ interface Restaurant {
 
 export default function PublicMenuPage() {
   const { managerId } = useParams<{ managerId: string }>();
+  const navigate = useNavigate();
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -142,6 +143,17 @@ export default function PublicMenuPage() {
         setTimeout(() => setRemovedItemName(null), 2000);
       }
       return updatedCart;
+    });
+  };
+
+  const removeFromCart = (dishId: string) => {
+    setCart(prevCart => {
+      const item = prevCart.find(i => i.dish_id === dishId);
+      if (item) {
+        setRemovedItemName(item.name);
+        setTimeout(() => setRemovedItemName(null), 2000);
+      }
+      return prevCart.filter(i => i.dish_id !== dishId);
     });
   };
 
@@ -583,8 +595,17 @@ export default function PublicMenuPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-8">
-              <h3 className="text-2xl font-bold text-black mb-6">Complete Your Order</h3>
-              
+              {/* Back to Menu Button */}
+              <button
+                onClick={() => {
+                  setShowOrderForm(false);
+                  setTimeout(() => navigate(`/menu/${managerId}`), 100); // Optional: slight delay for smoothness
+                }}
+                className="flex items-center mb-6 text-black hover:text-gray-700 font-semibold text-lg focus:outline-none"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                Back to Menu
+              </button>
               {/* Cart Summary */}
               <div className="mb-8">
                 <h4 className="text-lg font-semibold text-black mb-4">Order Summary</h4>
@@ -594,7 +615,14 @@ export default function PublicMenuPage() {
                       <div className="flex-1">
                         <span className="font-medium text-black">{item.quantity}x {item.name}</span>
                       </div>
-                      <span className="font-bold text-black">${(item.price * item.quantity).toFixed(2)}</span>
+                      <span className="font-bold text-black mr-2">${(item.price * item.quantity).toFixed(2)}</span>
+                      <button
+                        onClick={() => removeFromCart(item.dish_id)}
+                        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                        title="Remove from cart"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
                   ))}
                 </div>
