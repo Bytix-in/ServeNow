@@ -18,6 +18,13 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({
+    dishName: '',
+    dishType: '',
+    dishPrice: '',
+    dishPrepTime: '',
+    dishImageUrl: '',
+  });
 
   const dishTypes = [
     'Appetizers',
@@ -67,69 +74,119 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
     }
   };
   
+  // Helper to validate URL
+  function isValidUrl(url: string) {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  const validateForm = () => {
+    const errors: typeof fieldErrors = {
+      dishName: '',
+      dishType: '',
+      dishPrice: '',
+      dishPrepTime: '',
+      dishImageUrl: '',
+    };
+    let valid = true;
+    if (!dishName.trim()) {
+      errors.dishName = 'Dish name is required.';
+      valid = false;
+    }
+    if (!dishType) {
+      errors.dishType = 'Dish type is required.';
+      valid = false;
+    }
+    if (!dishPrice.trim()) {
+      errors.dishPrice = 'Price is required.';
+      valid = false;
+    } else if (isNaN(Number(dishPrice)) || Number(dishPrice) <= 0) {
+      errors.dishPrice = 'Price must be a number greater than 0.';
+      valid = false;
+    }
+    if (!dishPrepTime.trim()) {
+      errors.dishPrepTime = 'Prep time is required.';
+      valid = false;
+    } else if (isNaN(Number(dishPrepTime)) || Number(dishPrepTime) <= 0) {
+      errors.dishPrepTime = 'Prep time must be a positive number.';
+      valid = false;
+    }
+    if (dishImageUrl.trim()) {
+      if (!isValidUrl(dishImageUrl.trim())) {
+        errors.dishImageUrl = 'Image URL must be a valid URL.';
+        valid = false;
+      }
+    }
+    setFieldErrors(errors);
+    return valid;
+  };
+
   const handleAddDish = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setErrorMsg('');
+    if (!validateForm()) {
+      return;
+    }
+    setIsLoading(true);
     let imageUrl = dishImageUrl.trim();
     
-    if (dishName && dishType && dishPrice) {
-      try {
-        // No upload, just use the provided URL
-        const insertPayload = {
-          restaurant_id: restaurantId,
-          name: dishName,
-          type: dishType,
-          price: parseFloat(dishPrice),
-          ingredients: dishIngredients || null,
-          prep_time: parseInt(dishPrepTime) || 0,
-          tags: dishTags ? dishTags.split(',').map(tag => tag.trim()) : [],
-          image_url: imageUrl || null
-        };
-        console.log('Inserting dish:', insertPayload);
-        const { data: newDish, error } = await supabase
-          .from('dishes')
-          .insert(insertPayload)
-          .select()
-          .single();
+    try {
+      // No upload, just use the provided URL
+      const insertPayload = {
+        restaurant_id: restaurantId,
+        name: dishName,
+        type: dishType,
+        price: parseFloat(dishPrice),
+        ingredients: dishIngredients || null,
+        prep_time: parseInt(dishPrepTime) || 0,
+        tags: dishTags ? dishTags.split(',').map(tag => tag.trim()) : [],
+        image_url: imageUrl || null
+      };
+      console.log('Inserting dish:', insertPayload);
+      const { error } = await supabase
+        .from('dishes')
+        .insert(insertPayload)
+        .select()
+        .single();
 
-        if (error) {
-          setErrorMsg('Error adding dish: ' + error.message);
-          console.error('Error adding dish:', error, insertPayload);
-          setIsLoading(false);
-          return;
-        }
-
-        // Log dish creation activity
-        const managerId = localStorage.getItem('currentManagerId');
-        await logActivity(
-          'dish_added',
-          {
-            dish_name: dishName,
-            dish_type: dishType,
-            price: parseFloat(dishPrice)
-          },
-          restaurantId,
-          managerId || undefined
-        );
-
-        // Reload dishes to get updated list
-        await loadDishes();
-        
-        // Reset form
-        setDishName('');
-        setDishType('');
-        setDishPrice('');
-        setDishIngredients('');
-        setDishPrepTime('');
-        setDishTags('');
-        setDishImageUrl('');
-      } catch (error) {
-        setErrorMsg('Error adding dish: ' + (error instanceof Error ? error.message : String(error)));
-        console.error('Error adding dish:', error);
+      if (error) {
+        setErrorMsg('Error adding dish: ' + error.message);
+        console.error('Error adding dish:', error, insertPayload);
+        setIsLoading(false);
+        return;
       }
-    } else {
-      setErrorMsg('Please fill in all required fields.');
+
+      // Log dish creation activity
+      const managerId = localStorage.getItem('currentManagerId');
+      await logActivity(
+        'dish_added',
+        {
+          dish_name: dishName,
+          dish_type: dishType,
+          price: parseFloat(dishPrice)
+        },
+        restaurantId,
+        managerId || undefined
+      );
+
+      // Reload dishes to get updated list
+      await loadDishes();
+      
+      // Reset form
+      setDishName('');
+      setDishType('');
+      setDishPrice('');
+      setDishIngredients('');
+      setDishPrepTime('');
+      setDishTags('');
+      setDishImageUrl('');
+    } catch (error) {
+      setErrorMsg('Error adding dish: ' + (error instanceof Error ? error.message : String(error)));
+      console.error('Error adding dish:', error);
     }
     
     setIsLoading(false);
@@ -189,15 +246,16 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
           
           <form onSubmit={handleAddDish} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-black mb-2">Dish Name</label>
+              <label className="block text-sm font-medium text-black mb-2">Dish Name <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={dishName}
-                onChange={(e) => setDishName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                onChange={(e) => { setDishName(e.target.value); setFieldErrors(f => ({ ...f, dishName: '' })); }}
+                className={`w-full px-3 py-2 border ${fieldErrors.dishName ? 'border-red-400' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none`}
                 placeholder="Enter dish name"
                 required
               />
+              {fieldErrors.dishName && <p className="text-xs text-red-600 mt-1">{fieldErrors.dishName}</p>}
             </div>
             
             {/* Image URL input instead of file upload */}
@@ -206,11 +264,12 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
               <input
                 type="url"
                 value={dishImageUrl}
-                onChange={e => setDishImageUrl(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                onChange={e => { setDishImageUrl(e.target.value); setFieldErrors(f => ({ ...f, dishImageUrl: '' })); }}
+                className={`w-full px-3 py-2 border ${fieldErrors.dishImageUrl ? 'border-red-400' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none`}
                 placeholder="https://example.com/image.jpg"
               />
-              {dishImageUrl && (
+              {fieldErrors.dishImageUrl && <p className="text-xs text-red-600 mt-1">{fieldErrors.dishImageUrl}</p>}
+              {dishImageUrl && !fieldErrors.dishImageUrl && (
                 <div className="mt-2">
                   <img
                     src={dishImageUrl}
@@ -222,11 +281,11 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-black mb-2">Dish Type</label>
+              <label className="block text-sm font-medium text-black mb-2">Dish Type <span className="text-red-500">*</span></label>
               <select
                 value={dishType}
-                onChange={(e) => setDishType(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                onChange={(e) => { setDishType(e.target.value); setFieldErrors(f => ({ ...f, dishType: '' })); }}
+                className={`w-full px-3 py-2 border ${fieldErrors.dishType ? 'border-red-400' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none`}
                 required
               >
                 <option value="">Select dish type</option>
@@ -236,19 +295,21 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
                   </option>
                 ))}
               </select>
+              {fieldErrors.dishType && <p className="text-xs text-red-600 mt-1">{fieldErrors.dishType}</p>}
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-black mb-2">Price ($)</label>
+              <label className="block text-sm font-medium text-black mb-2">Price ($) <span className="text-red-500">*</span></label>
               <input
                 type="number"
                 step="0.01"
                 value={dishPrice}
-                onChange={(e) => setDishPrice(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                onChange={(e) => { setDishPrice(e.target.value); setFieldErrors(f => ({ ...f, dishPrice: '' })); }}
+                className={`w-full px-3 py-2 border ${fieldErrors.dishPrice ? 'border-red-400' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none`}
                 placeholder="0.00"
                 required
               />
+              {fieldErrors.dishPrice && <p className="text-xs text-red-600 mt-1">{fieldErrors.dishPrice}</p>}
             </div>
             
             <div>
@@ -263,14 +324,16 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-black mb-2">Prep Time (minutes)</label>
+              <label className="block text-sm font-medium text-black mb-2">Prep Time (minutes) <span className="text-red-500">*</span></label>
               <input
                 type="number"
                 value={dishPrepTime}
-                onChange={(e) => setDishPrepTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                onChange={(e) => { setDishPrepTime(e.target.value); setFieldErrors(f => ({ ...f, dishPrepTime: '' })); }}
+                className={`w-full px-3 py-2 border ${fieldErrors.dishPrepTime ? 'border-red-400' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none`}
                 placeholder="0"
+                required
               />
+              {fieldErrors.dishPrepTime && <p className="text-xs text-red-600 mt-1">{fieldErrors.dishPrepTime}</p>}
             </div>
             
             <div>
