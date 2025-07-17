@@ -171,46 +171,38 @@ export default function HomePage() {
       </section>
 
       {/* Contact CTA Section */}
-      <section className="section-padding bg-black">
-        <div className="max-w-6xl mx-auto container-padding text-center">
-          <div className="glass-dark rounded-3xl p-16">
-            <h2 className="heading-lg text-white mb-8">
-              Ready to Transform Your Restaurant?
-            </h2>
-            <p className="text-xl text-gray-300 mb-12 max-w-3xl mx-auto font-medium">
-              Join hundreds of restaurants already transforming their operations with ServeNow. 
-              Our expert team will guide you through easy onboarding and setup.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-              <div className="glass rounded-xl p-8 border border-white/10">
-                <Clock className="w-12 h-12 text-white mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-white mb-3">Quick Setup</h3>
-                <p className="text-gray-300 font-medium">Get up and running in under 24 hours</p>
-              </div>
-              
-              <div className="glass rounded-xl p-8 border border-white/10">
-                <Users className="w-12 h-12 text-white mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-white mb-3">Expert Support</h3>
-                <p className="text-gray-300 font-medium">Dedicated onboarding specialist assigned</p>
-              </div>
-              
-              <div className="glass rounded-xl p-8 border border-white/10">
-                <Shield className="w-12 h-12 text-white mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-white mb-3">Enterprise Security</h3>
-                <p className="text-gray-300 font-medium">Bank-level security for your data</p>
-              </div>
-            </div>
-            
-            <button
-              onClick={() => navigate('/contact')}
-              className="px-12 py-5 bg-white text-black font-black rounded-xl hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center space-x-4 mx-auto text-lg"
-            >
-              <Mail className="w-6 h-6" />
-              <span>Contact Us Now for Easy Onboarding</span>
-              <ArrowRight className="w-6 h-6" />
-            </button>
+      <section className="py-14 bg-black" style={{ backgroundImage: 'none' }}>
+        <div className="max-w-3xl mx-auto px-4 text-center">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-3">Ready to Transform Your Restaurant?</h2>
+          <p className="text-lg text-gray-200 mb-8 font-medium">Join hundreds of restaurants already transforming their operations with ServeNow. Our expert team will guide you through easy onboarding and setup.</p>
+        </div>
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row gap-6 md:gap-8 justify-center items-stretch mb-8 px-4">
+          <div className="flex-1 bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center border border-gray-200 solid-white-card relative z-10">
+            <Clock className="w-10 h-10 text-black mb-3" />
+            <h3 className="text-lg font-bold text-black mb-1">Quick Setup</h3>
+            <p className="text-gray-700 text-sm">Up and running in under 24 hours</p>
           </div>
+          <div className="flex-1 bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center border border-gray-200 solid-white-card relative z-10">
+            <Users className="w-10 h-10 text-black mb-3" />
+            <h3 className="text-lg font-bold text-black mb-1">Expert Support</h3>
+            <p className="text-gray-700 text-sm">Onboarding specialist assigned</p>
+          </div>
+          <div className="flex-1 bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center border border-gray-200 solid-white-card relative z-10">
+            <Shield className="w-10 h-10 text-black mb-3" />
+            <h3 className="text-lg font-bold text-black mb-1">Enterprise Security</h3>
+            <p className="text-gray-700 text-sm">Bank-level data security</p>
+          </div>
+        </div>
+        <div className="flex justify-center relative z-10">
+          <button
+            onClick={() => navigate('/contact')}
+            className="px-10 py-4 bg-yellow-400 text-black font-extrabold rounded-xl hover:bg-yellow-500 transition-all duration-300 shadow-lg flex items-center space-x-3 text-lg border-2 border-yellow-500 focus:outline-none focus:ring-4 focus:ring-yellow-300"
+            style={{ zIndex: 10, position: 'relative' }}
+          >
+            <Mail className="w-6 h-6" />
+            <span>Contact Us Now for Easy Onboarding</span>
+            <ArrowRight className="w-6 h-6" />
+          </button>
         </div>
       </section>
 
