@@ -88,6 +88,7 @@ export default function HomePage() {
               <button
                 onClick={() => navigate('/contact')}
                 className="btn-secondary flex items-center space-x-3"
+                style={{pointerEvents: 'auto' , zIndex: 10}}
               >
                 <Mail className="w-6 h-6" />
                 <span>Schedule Demo</span>
