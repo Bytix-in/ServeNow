@@ -1,7 +1,43 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, User, Bell, Shield, Database, Globe } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export default function AdminSettings() {
+  const [admin, setAdmin] = useState<{ name: string; email: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAdmin = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const email = localStorage.getItem('adminEmail');
+        if (!email) {
+          setError('Admin email not found in localStorage.');
+          setLoading(false);
+          return;
+        }
+        const { data, error } = await supabase
+          .from('admins')
+          .select('name, email')
+          .eq('email', email)
+          .single();
+        if (error || !data) {
+          setError('Failed to fetch admin profile.');
+          setLoading(false);
+          return;
+        }
+        setAdmin({ name: data.name, email: data.email });
+      } catch (err) {
+        setError('An error occurred while fetching admin profile.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAdmin();
+  }, []);
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -19,81 +55,45 @@ export default function AdminSettings() {
             <User className="w-5 h-5 text-black" />
             <h2 className="text-xl font-semibold text-black">Admin Profile</h2>
           </div>
-          
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Admin Name</label>
-              <input
-                type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                placeholder="Enter admin name"
-                defaultValue="System Administrator"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Email</label>
-              <input
-                type="email"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                placeholder="Enter email address"
-                defaultValue="admin@servenow.com"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Phone</label>
-              <input
-                type="tel"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                placeholder="Enter phone number"
-              />
-            </div>
-            
-            <button className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors">
-              Update Profile
-            </button>
-          </div>
-        </div>
-
-        {/* Security Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center space-x-3 mb-6">
-            <Shield className="w-5 h-5 text-black" />
-            <h2 className="text-xl font-semibold text-black">Security</h2>
-          </div>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Current Password</label>
-              <input
-                type="password"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                placeholder="Enter current password"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">New Password</label>
-              <input
-                type="password"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                placeholder="Enter new password"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Confirm Password</label>
-              <input
-                type="password"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                placeholder="Confirm new password"
-              />
-            </div>
-            
-            <button className="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors">
-              Change Password
-            </button>
+            {loading ? (
+              <div className="text-gray-500">Loading profile...</div>
+            ) : error ? (
+              <div className="text-red-600">{error}</div>
+            ) : admin ? (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">Admin Name</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none bg-gray-100"
+                    value={admin.name}
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">Email</label>
+                  <input
+                    type="email"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none bg-gray-100"
+                    value={admin.email}
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">Phone</label>
+                  <input
+                    type="tel"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
+                    placeholder="Enter phone number"
+                    readOnly
+                  />
+                </div>
+                <button className="w-full bg-black text-white py-3 rounded-lg font-semibold opacity-50 cursor-not-allowed">
+                  Update Profile
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
 
