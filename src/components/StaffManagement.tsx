@@ -30,6 +30,27 @@ export default function StaffManagement({ restaurantId }: StaffManagementProps) 
 
   useEffect(() => {
     if (restaurantId) loadStaff();
+    // --- Realtime subscription for staff ---
+    if (restaurantId) {
+      const channel = supabase
+        .channel('staff-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'staff',
+            filter: `restaurant_id=eq.${restaurantId}`
+          },
+          (payload) => {
+            loadStaff();
+          }
+        )
+        .subscribe();
+      return () => {
+        channel.unsubscribe();
+      };
+    }
   }, [restaurantId]);
 
   const loadStaff = async () => {

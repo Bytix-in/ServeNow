@@ -24,24 +24,36 @@ const CookDashboard: React.FC = () => {
 
   useEffect(() => {
     console.log('[CookDashboard] useEffect mount');
-    try {
-      const staff = sessionStorage.getItem('staff');
-      if (staff) {
-        const parsed = JSON.parse(staff);
-        console.log('[CookDashboard] Logged-in staff object:', parsed);
-        setCookName(parsed.full_name);
-        setCookRole(parsed.role || '');
-        fetchAssignedDishes(parsed);
-      } else {
-        console.log('[CookDashboard] No staff session found, redirecting to login');
-        navigate('/staff-login');
-      }
-    } catch (err) {
-      console.error('[CookDashboard] Error in useEffect:', err);
-      setError('Failed to load staff session.');
-      setLoading(false);
+    let cook = null;
+    const staff = sessionStorage.getItem('staff');
+    if (staff) {
+      cook = JSON.parse(staff);
+      setCookName(cook.full_name);
+      setCookRole(cook.role || '');
+      fetchAssignedDishes(cook);
+      // --- Realtime subscription for orders ---
+      const channel = supabase
+        .channel('cook-orders-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+            filter: `restaurant_id=eq.${cook.restaurant_id}`
+          },
+          (payload) => {
+            fetchAssignedDishes(cook);
+          }
+        )
+        .subscribe();
+      return () => {
+        channel.unsubscribe();
+      };
+    } else {
+      console.log('[CookDashboard] No staff session found, redirecting to login');
+      navigate('/staff-login');
     }
-    // eslint-disable-next-line
   }, [navigate]);
 
   const fetchAssignedDishes = async (cook: any) => {

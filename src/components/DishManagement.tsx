@@ -53,6 +53,25 @@ export default function DishManagement({ restaurantId }: DishManagementProps) {
   useEffect(() => {
     if (restaurantId) {
       loadDishes();
+      // --- Realtime subscription for dishes ---
+      const channel = supabase
+        .channel('dishes-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'dishes',
+            filter: `restaurant_id=eq.${restaurantId}`
+          },
+          (payload) => {
+            loadDishes();
+          }
+        )
+        .subscribe();
+      return () => {
+        channel.unsubscribe();
+      };
     }
   }, [restaurantId]);
 

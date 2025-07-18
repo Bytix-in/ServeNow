@@ -23,11 +23,31 @@ const WaiterDashboard: React.FC = () => {
   const [updatingDish, setUpdatingDish] = useState<string | null>(null);
 
   useEffect(() => {
+    let waiter = null;
     const staff = sessionStorage.getItem('staff');
     if (staff) {
-      const parsed = JSON.parse(staff);
-      setWaiterName(parsed.full_name);
-      fetchAssignedTasks(parsed);
+      waiter = JSON.parse(staff);
+      setWaiterName(waiter.full_name);
+      fetchAssignedTasks(waiter);
+      // --- Realtime subscription for orders ---
+      const channel = supabase
+        .channel('waiter-orders-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+            filter: `restaurant_id=eq.${waiter.restaurant_id}`
+          },
+          (payload) => {
+            fetchAssignedTasks(waiter);
+          }
+        )
+        .subscribe();
+      return () => {
+        channel.unsubscribe();
+      };
     } else {
       navigate('/staff-login');
     }

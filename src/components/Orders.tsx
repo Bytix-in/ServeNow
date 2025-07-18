@@ -47,6 +47,25 @@ export default function Orders({ restaurantId }: OrdersProps) {
     if (restaurantId) {
       loadOrders();
       loadMenu();
+      // --- Realtime subscription for orders ---
+      const channel = supabase
+        .channel('orders-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+            schema: 'public',
+            table: 'orders',
+            filter: `restaurant_id=eq.${restaurantId}`
+          },
+          (payload) => {
+            loadOrders(); // Reload orders on any change
+          }
+        )
+        .subscribe();
+      return () => {
+        channel.unsubscribe();
+      };
     }
   }, [restaurantId]);
 
