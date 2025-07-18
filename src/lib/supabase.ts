@@ -64,6 +64,10 @@ export interface OrderItem {
   name: string;
   quantity: number;
   price: number;
+  assigned_cook_id?: string | null;
+  assigned_waiter_id?: string | null;
+  cook_status?: 'pending' | 'preparing' | 'completed' | string;
+  waiter_status?: 'pending' | 'accepted' | 'served' | string;
 }
 
 export interface ActivityLog {
