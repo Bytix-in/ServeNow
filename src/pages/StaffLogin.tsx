@@ -37,8 +37,8 @@ const StaffLogin: React.FC = () => {
       toast.error('This staff account is deactivated.');
       return;
     }
-    // Store staff info in localStorage
-    localStorage.setItem('staff', JSON.stringify(data));
+    // Store staff info in sessionStorage for per-tab isolation
+    sessionStorage.setItem('staff', JSON.stringify(data));
     // Redirect based on role
     if (data.role === 'cook') {
       navigate('/cook/dashboard');

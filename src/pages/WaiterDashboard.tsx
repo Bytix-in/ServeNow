@@ -18,9 +18,10 @@ const WaiterDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const [updatingDish, setUpdatingDish] = useState<string | null>(null);
 
   useEffect(() => {
-    const staff = localStorage.getItem('staff');
+    const staff = sessionStorage.getItem('staff');
     if (staff) {
       const parsed = JSON.parse(staff);
       setWaiterName(parsed.full_name);
@@ -66,6 +67,7 @@ const WaiterDashboard: React.FC = () => {
   };
 
   const updateTaskStatus = async (orderId: string, dishName: string, nextStatus: string) => {
+    setUpdatingDish(dishName);
     try {
       // Fetch the order
       const { data: order, error: fetchError } = await supabase
@@ -74,26 +76,63 @@ const WaiterDashboard: React.FC = () => {
         .eq('id', orderId)
         .single();
       if (fetchError || !order) throw fetchError || new Error('Order not found');
-      // Update the status for the specific dish
+      // Update the relevant dish in the items array
       const updatedItems = order.items.map((item: any) =>
-        item.name === dishName ? { ...item, status: nextStatus } : item
+        item.name === dishName ? { ...item, waiter_status: nextStatus } : item
       );
-      // If all dishes are served, mark order as completed
-      const allServed = updatedItems.every((item: any) => item.status === 'served');
-      const newOrderStatus = allServed ? 'completed' : nextStatus === 'served' ? 'ready' : order.status;
-      const { error: updateError } = await supabase
+      // Compute new order status
+      let newOrderStatus = order.status;
+      if (nextStatus === 'accepted') {
+        newOrderStatus = 'serving';
+      } else if (nextStatus === 'served') {
+        // Check if all dishes are completed
+        const updatedDish = updatedItems.find((item: any) => item.name === dishName);
+        if (updatedDish && updatedDish.cook_status === 'completed' && updatedDish.waiter_status === 'served') {
+          const allDishesCompleted = updatedItems.every((item: any) => item.cook_status === 'completed' && item.waiter_status === 'served');
+          if (allDishesCompleted) {
+            newOrderStatus = 'completed';
+            console.log('[WaiterDashboard] All dishes completed, setting order status to completed');
+          } else {
+            newOrderStatus = 'served';
+            console.log('[WaiterDashboard] Dish served, setting order status to served');
+          }
+        }
+      }
+      // Update the order row
+      const { error: updateError, data: updateData } = await supabase
         .from('orders')
         .update({ items: updatedItems, status: newOrderStatus })
-        .eq('id', orderId);
-      if (updateError) throw updateError;
-      toast.success('Status updated!');
+        .eq('id', orderId)
+        .select();
+      console.log('[WaiterDashboard] Supabase update response:', { updateData, updateError });
+      if (updateError) {
+        toast.error('Failed to update status');
+        console.error('[WaiterDashboard] Status update error for', dishName, ':', updateError);
+      } else {
+        toast.success('Status updated!');
+        console.log('[WaiterDashboard] Status update success for', dishName, 'to', nextStatus, updateData);
+        // Log the updated assigned_waiter_id and waiter.staff_id for debug
+        const staff = sessionStorage.getItem('staff');
+        const waiter = staff ? JSON.parse(staff) : null;
+        if (updateData && updateData[0]) {
+          const updatedItem = updateData[0].items.find((item: any) => item.name === dishName);
+          console.log('[WaiterDashboard] After update: assigned_waiter_id for dish', dishName, 'is', updatedItem?.assigned_waiter_id, 'waiter.staff_id:', waiter?.staff_id, 'waiter_status:', updatedItem?.waiter_status, 'cook_status:', updatedItem?.cook_status);
+        }
+      }
       // Refresh assigned tasks
-      const staff = localStorage.getItem('staff');
+      const staff = sessionStorage.getItem('staff');
       if (staff) fetchAssignedTasks(JSON.parse(staff));
     } catch (err: any) {
       toast.error('Failed to update status');
-      console.error('Status update error:', err);
+      console.error('[WaiterDashboard] Status update error for', dishName, ':', err);
+    } finally {
+      setUpdatingDish(null);
     }
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('staff');
+    navigate('/staff-login');
   };
 
   return (
@@ -119,15 +158,21 @@ const WaiterDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {assignedTasks.map((task, idx) => (
+              {assignedTasks.filter(task => task.dishStatus !== 'served' || task.cookStatus !== 'completed').map((task, idx) => (
                 <tr key={task.orderId + '-' + idx} className="border-b">
                   <td className="px-4 py-2">{task.dishName}</td>
                   <td className="px-4 py-2">{task.tableNumber}</td>
                   <td className="px-4 py-2">{task.customerName}</td>
-                  <td className="px-4 py-2 capitalize">{task.status}</td>
+                  <td className="px-4 py-2 capitalize">{task.dishStatus || 'pending'}</td>
                   <td className="px-4 py-2">
-                    {task.status === 'preparing' && (
-                      <button onClick={() => updateTaskStatus(task.orderId, task.dishName, 'served')} className="bg-green-600 text-white px-2 py-1 rounded text-xs">Mark Served</button>
+                    {(!task.dishStatus || task.dishStatus === 'pending') && (
+                      <button onClick={() => updateTaskStatus(task.orderId, task.dishName, 'accepted')} className="bg-blue-600 text-white px-2 py-1 rounded text-xs" disabled={updatingDish === task.dishName}>Accept</button>
+                    )}
+                    {task.dishStatus === 'accepted' && (
+                      <button onClick={() => updateTaskStatus(task.orderId, task.dishName, 'served')} className="bg-green-600 text-white px-2 py-1 rounded text-xs" disabled={updatingDish === task.dishName}>Served</button>
+                    )}
+                    {task.dishStatus === 'served' && task.cookStatus === 'completed' && (
+                      <span className="bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs">Completed</span>
                     )}
                   </td>
                 </tr>

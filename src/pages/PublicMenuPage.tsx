@@ -129,12 +129,12 @@ export default function PublicMenuPage() {
   const updateQuantity = (dishId: string, change: number) => {
     setCart(prevCart => {
       const updatedCart = prevCart.map(item => {
-        if (item.dish_id === dishId) {
-          const newQuantity = item.quantity + change;
+      if (item.dish_id === dishId) {
+        const newQuantity = item.quantity + change;
           // Prevent negative quantities
           return newQuantity > 0 ? { ...item, quantity: newQuantity } : null;
-        }
-        return item;
+      }
+      return item;
       }).filter((item): item is CartItem => item !== null && item.quantity > 0);
       // If item was removed, show toast
       const originalItem = prevCart.find(item => item.dish_id === dishId);

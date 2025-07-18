@@ -18,15 +18,27 @@ const CookDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const [cookRole, setCookRole] = useState('');
+  const [updatingDish, setUpdatingDish] = useState<string | null>(null);
 
   useEffect(() => {
-    const staff = localStorage.getItem('staff');
-    if (staff) {
-      const parsed = JSON.parse(staff);
-      setCookName(parsed.full_name);
-      fetchAssignedDishes(parsed);
-    } else {
-      navigate('/staff-login');
+    console.log('[CookDashboard] useEffect mount');
+    try {
+      const staff = sessionStorage.getItem('staff');
+      if (staff) {
+        const parsed = JSON.parse(staff);
+        console.log('[CookDashboard] Logged-in staff object:', parsed);
+        setCookName(parsed.full_name);
+        setCookRole(parsed.role || '');
+        fetchAssignedDishes(parsed);
+      } else {
+        console.log('[CookDashboard] No staff session found, redirecting to login');
+        navigate('/staff-login');
+      }
+    } catch (err) {
+      console.error('[CookDashboard] Error in useEffect:', err);
+      setError('Failed to load staff session.');
+      setLoading(false);
     }
     // eslint-disable-next-line
   }, [navigate]);
@@ -35,13 +47,15 @@ const CookDashboard: React.FC = () => {
     setLoading(true);
     setError('');
     try {
+      console.log('[CookDashboard] fetchAssignedDishes called for cook:', cook);
       // Get all orders for the cook's restaurant
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
         .select('*')
         .eq('restaurant_id', cook.restaurant_id);
       if (ordersError) throw ordersError;
-      // Flatten all assigned dishes for this cook
+      console.log('[CookDashboard] Fetched orders:', orders);
+      // Flatten all assigned dishes for this cook using id (UUID)
       const assigned: AssignedDish[] = [];
       for (const order of orders) {
         for (const item of order.items) {
@@ -53,12 +67,15 @@ const CookDashboard: React.FC = () => {
               status: order.status,
               customerName: order.customer_name,
               assignedWaiterId: item.assigned_waiter_id,
+              cookStatus: item.cook_status,
             });
           }
         }
       }
+      console.log('[CookDashboard] Filtered assigned dishes:', assigned);
       setAssignedDishes(assigned);
     } catch (err: any) {
+      console.error('[CookDashboard] Error in fetchAssignedDishes:', err);
       setError('Failed to load assigned dishes.');
     } finally {
       setLoading(false);
@@ -66,6 +83,7 @@ const CookDashboard: React.FC = () => {
   };
 
   const updateDishStatus = async (orderId: string, dishName: string, nextStatus: string) => {
+    setUpdatingDish(dishName);
     try {
       // Fetch the order
       const { data: order, error: fetchError } = await supabase
@@ -74,31 +92,42 @@ const CookDashboard: React.FC = () => {
         .eq('id', orderId)
         .single();
       if (fetchError || !order) throw fetchError || new Error('Order not found');
-      // Update the status for the specific dish
+      // Update the relevant dish in the items array
       const updatedItems = order.items.map((item: any) =>
-        item.name === dishName ? { ...item, status: nextStatus } : item
+        item.name === dishName ? { ...item, cook_status: nextStatus } : item
       );
-      // If all dishes are complete, mark order as completed
-      const allComplete = updatedItems.every((item: any) => item.status === 'complete');
-      const newOrderStatus = allComplete ? 'completed' : nextStatus === 'preparing' ? 'preparing' : order.status;
-      const { error: updateError } = await supabase
+      // Update the order row
+      const { error: updateError, data: updateData } = await supabase
         .from('orders')
-        .update({ items: updatedItems, status: newOrderStatus })
-        .eq('id', orderId);
-      if (updateError) throw updateError;
-      toast.success('Status updated!');
+        .update({ items: updatedItems })
+        .eq('id', orderId)
+        .select();
+      if (updateError) {
+        toast.error('Failed to update status');
+        console.error('[CookDashboard] Status update error for', dishName, ':', updateError);
+      } else {
+        toast.success('Status updated!');
+        console.log('[CookDashboard] Status update success for', dishName, 'to', nextStatus, updateData);
+      }
       // Refresh assigned dishes
-      const staff = localStorage.getItem('staff');
+      const staff = sessionStorage.getItem('staff');
       if (staff) fetchAssignedDishes(JSON.parse(staff));
     } catch (err: any) {
       toast.error('Failed to update status');
-      console.error('Status update error:', err);
+      console.error('[CookDashboard] Status update error for', dishName, ':', err);
+    } finally {
+      setUpdatingDish(null);
     }
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('staff');
+    navigate('/staff-login');
   };
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Welcome, {cookName} (Cook)</h1>
+      <h1 className="text-2xl font-bold mb-4">Welcome {cookRole ? cookRole.charAt(0).toUpperCase() + cookRole.slice(1) : ''}{cookName && `, ${cookName}`}</h1>
       <div className="bg-white rounded shadow p-6">
         <h2 className="text-xl font-semibold mb-2">Assigned Dishes/Orders</h2>
         {loading ? (
@@ -124,13 +153,13 @@ const CookDashboard: React.FC = () => {
                   <td className="px-4 py-2">{dish.dishName}</td>
                   <td className="px-4 py-2">{dish.tableNumber}</td>
                   <td className="px-4 py-2">{dish.customerName}</td>
-                  <td className="px-4 py-2 capitalize">{dish.status}</td>
+                  <td className="px-4 py-2 capitalize">{dish.cookStatus || 'pending'}</td>
                   <td className="px-4 py-2">
-                    {dish.status === 'pending' && (
-                      <button onClick={() => updateDishStatus(dish.orderId, dish.dishName, 'preparing')} className="bg-blue-600 text-white px-2 py-1 rounded text-xs">Start Preparing</button>
+                    {(!dish.cookStatus || dish.cookStatus === 'pending') && (
+                      <button onClick={() => updateDishStatus(dish.orderId, dish.dishName, 'preparing')} className="bg-blue-600 text-white px-2 py-1 rounded text-xs" disabled={updatingDish === dish.dishName}>Start Preparing</button>
                     )}
-                    {dish.status === 'preparing' && (
-                      <button onClick={() => updateDishStatus(dish.orderId, dish.dishName, 'complete')} className="bg-green-600 text-white px-2 py-1 rounded text-xs">Mark Complete</button>
+                    {dish.cookStatus === 'preparing' && (
+                      <button onClick={() => updateDishStatus(dish.orderId, dish.dishName, 'completed')} className="bg-green-600 text-white px-2 py-1 rounded text-xs" disabled={updatingDish === dish.dishName}>Mark Completed</button>
                     )}
                   </td>
                 </tr>

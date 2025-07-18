@@ -270,6 +270,7 @@ export default function ManagerDashboard() {
                             <th className="px-2 py-1 text-left">Qty</th>
                             <th className="px-2 py-1 text-left">Cook ID</th>
                             <th className="px-2 py-1 text-left">Waiter ID</th>
+                            <th className="px-2 py-1 text-left">Status</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -279,6 +280,16 @@ export default function ManagerDashboard() {
                               <td className="px-2 py-1">{item.quantity}</td>
                               <td className="px-2 py-1 font-mono">{getStaffName(item.assigned_cook_id)}</td>
                               <td className="px-2 py-1 font-mono">{getStaffName(item.assigned_waiter_id)}</td>
+                              <td className="px-2 py-1 capitalize">{(() => {
+                                let status = 'In Progress';
+                                if (item.cook_status === 'preparing') status = 'Preparing';
+                                else if (item.cook_status === 'completed' && !item.waiter_status) status = 'Food Prepared';
+                                else if (item.cook_status === 'completed' && item.waiter_status === 'accepted') status = 'Serving';
+                                else if (item.cook_status === 'completed' && item.waiter_status === 'served') status = 'Served';
+                                if (item.cook_status === 'completed' && item.waiter_status === 'served' && order.status === 'completed') status = 'Completed';
+                                console.log('[ManagerDashboard] Computed status for dish', item.name, 'order', order.id, ':', status, 'cook_status:', item.cook_status, 'waiter_status:', item.waiter_status);
+                                return status;
+                              })()}</td>
                             </tr>
                           ))}
                         </tbody>
