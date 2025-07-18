@@ -22,6 +22,24 @@ export default function AdminDashboard() {
     }
     
     loadRestaurants();
+    // --- Realtime subscription for restaurants ---
+    const channel = supabase
+      .channel('admin-restaurants-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'restaurants'
+        },
+        (payload) => {
+          loadRestaurants();
+        }
+      )
+      .subscribe();
+    return () => {
+      channel.unsubscribe();
+    };
   }, [navigate]);
 
   const loadRestaurants = async () => {

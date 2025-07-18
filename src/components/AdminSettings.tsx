@@ -36,6 +36,27 @@ export default function AdminSettings() {
       }
     };
     fetchAdmin();
+    const email = localStorage.getItem('adminEmail');
+    if (email) {
+      const channel = supabase
+        .channel('admins-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'admins',
+            filter: `email=eq.${email}`
+          },
+          (payload) => {
+            fetchAdmin();
+          }
+        )
+        .subscribe();
+      return () => {
+        channel.unsubscribe();
+      };
+    }
   }, []);
 
   return (

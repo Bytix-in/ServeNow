@@ -58,6 +58,25 @@ export default function PublicMenuPage() {
   useEffect(() => {
     if (managerId) {
       loadRestaurantData();
+      // --- Realtime subscription for dishes ---
+      const channel = supabase
+        .channel('publicmenu-dishes-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'dishes',
+            filter: `restaurant_id=eq.${managerId}`
+          },
+          (payload) => {
+            loadRestaurantData();
+          }
+        )
+        .subscribe();
+      return () => {
+        channel.unsubscribe();
+      };
     }
   }, [managerId]);
 

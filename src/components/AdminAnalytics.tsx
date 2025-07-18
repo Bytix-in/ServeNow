@@ -23,6 +23,27 @@ export default function AdminAnalytics({ restaurants }: AdminAnalyticsProps) {
 
   useEffect(() => {
     fetchAnalytics(restaurants);
+    // --- Realtime subscriptions for analytics tables ---
+    const tables = ['restaurants', 'dishes', 'tables'];
+    const channels = tables.map(table =>
+      supabase
+        .channel(`${table}-analytics-realtime`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table
+          },
+          (payload) => {
+            fetchAnalytics(restaurants);
+          }
+        )
+        .subscribe()
+    );
+    return () => {
+      channels.forEach(channel => channel.unsubscribe());
+    };
   }, [restaurants]);
 
   const fetchAnalytics = async (restaurantData: Restaurant[]) => {

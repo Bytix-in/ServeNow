@@ -40,8 +40,42 @@ export default function RestaurantDetails() {
 
     if (managerId) {
       loadRestaurantData();
+      // --- Realtime subscriptions for all tables ---
+      let restaurantId = null;
+      const fetchAndSetRestaurantId = async () => {
+        const { data: restaurant } = await supabase
+          .from('restaurants')
+          .select('id')
+          .eq('manager_id', managerId)
+          .single();
+        restaurantId = restaurant?.id;
+        if (restaurantId) {
+          const tables = ['restaurants', 'dishes', 'tables', 'orders'];
+          const channels = tables.map(table =>
+            supabase
+              .channel(`${table}-realtime`)
+              .on(
+                'postgres_changes',
+                {
+                  event: '*',
+                  schema: 'public',
+                  table,
+                  filter: `restaurant_id=eq.${restaurantId}`
+                },
+                (payload) => {
+                  loadRestaurantData();
+                }
+              )
+              .subscribe()
+          );
+          return () => {
+            channels.forEach(channel => channel.unsubscribe());
+          };
+        }
+      };
+      fetchAndSetRestaurantId();
     }
-  }, [managerId, navigate]);
+  }, [managerId]);
 
   const loadRestaurantData = async () => {
     try {

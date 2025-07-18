@@ -50,6 +50,27 @@ export default function Settings() {
       }
     };
     fetchRestaurant();
+    const restaurantId = localStorage.getItem('currentRestaurantId');
+    if (restaurantId) {
+      const channel = supabase
+        .channel('restaurants-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'restaurants',
+            filter: `id=eq.${restaurantId}`
+          },
+          (payload) => {
+            fetchRestaurant();
+          }
+        )
+        .subscribe();
+      return () => {
+        channel.unsubscribe();
+      };
+    }
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

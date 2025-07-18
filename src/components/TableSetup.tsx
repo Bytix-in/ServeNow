@@ -15,6 +15,25 @@ export default function TableSetup({ restaurantId }: TableSetupProps) {
   useEffect(() => {
     if (restaurantId) {
       loadTables();
+      // --- Realtime subscription for tables ---
+      const channel = supabase
+        .channel('tables-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'tables',
+            filter: `restaurant_id=eq.${restaurantId}`
+          },
+          (payload) => {
+            loadTables();
+          }
+        )
+        .subscribe();
+      return () => {
+        channel.unsubscribe();
+      };
     }
   }, [restaurantId]);
 

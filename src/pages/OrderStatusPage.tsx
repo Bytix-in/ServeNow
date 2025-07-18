@@ -39,10 +39,27 @@ export default function OrderStatusPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (orderId) {
-      loadOrderData();
-      setupRealtimeSubscription();
-    }
+    if (!orderId) return;
+    loadOrderData();
+    // --- Realtime subscription for this order ---
+    const channel = supabase
+      .channel('order-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${orderId}`
+        },
+        (payload) => {
+          setOrder(payload.new as Order);
+        }
+      )
+      .subscribe();
+    return () => {
+      channel.unsubscribe();
+    };
   }, [orderId]);
 
   useEffect(() => {
