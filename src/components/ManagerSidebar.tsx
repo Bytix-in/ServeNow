@@ -9,7 +9,8 @@ import {
   Store,
   ChevronLeft,
   ChevronRight,
-  ClipboardList
+  ClipboardList,
+  Users
 } from 'lucide-react';
 
 interface ManagerSidebarProps {
@@ -35,6 +36,7 @@ export default function ManagerSidebar({
     { id: 'menu-builder', label: 'Menu Builder', icon: QrCode },
     { id: 'tables', label: 'Table Setup', icon: Table },
     { id: 'orders', label: 'Orders', icon: ClipboardList },
+    { id: 'staff', label: 'Staff Management', icon: Users },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
