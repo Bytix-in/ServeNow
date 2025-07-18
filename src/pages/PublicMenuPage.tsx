@@ -200,10 +200,14 @@ export default function PublicMenuPage() {
       }
       // Assign each dish to the least-busy cook and waiter
       const assignedItems = cart.map((item) => {
-        const leastBusyCook = cooks.reduce((min, c) => cookTaskCount[c.id] < cookTaskCount[min.id] ? c : min, cooks[0]);
-        const leastBusyWaiter = waiters.reduce((min, w) => waiterTaskCount[w.id] < waiterTaskCount[min.id] ? w : min, waiters[0]);
-        cookTaskCount[leastBusyCook.id]++;
-        waiterTaskCount[leastBusyWaiter.id]++;
+        const leastBusyCook = cooks.length > 0
+          ? cooks.reduce((min, c) => cookTaskCount[c.id] < cookTaskCount[min.id] ? c : min, cooks[0])
+          : null;
+        const leastBusyWaiter = waiters.length > 0
+          ? waiters.reduce((min, w) => waiterTaskCount[w.id] < waiterTaskCount[min.id] ? w : min, waiters[0])
+          : null;
+        if (leastBusyCook) cookTaskCount[leastBusyCook.id]++;
+        if (leastBusyWaiter) waiterTaskCount[leastBusyWaiter.id]++;
         return {
           ...item,
           assigned_cook_id: leastBusyCook ? leastBusyCook.id : null,
