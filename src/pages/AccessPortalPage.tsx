@@ -129,6 +129,49 @@ export default function AccessPortalPage() {
                 </div>
               </div>
             </div>
+
+            {/* Staff Login Card */}
+            <div className="card p-12 hover-lift">
+              <div className="text-center mb-10">
+                <div className="w-24 h-24 bg-black rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Users className="w-12 h-12 text-white" />
+                </div>
+                <h3 className="heading-md mb-4">Staff Portal</h3>
+                <p className="text-gray-600 font-medium text-lg leading-relaxed">
+                  Access to restaurant staff management, employee schedules, and operational tools.
+                </p>
+              </div>
+
+              <div className="space-y-6 mb-10">
+                <div className="flex items-center space-x-4 text-gray-700">
+                  <div className="w-3 h-3 bg-black rounded-full flex-shrink-0"></div>
+                  <span className="font-medium text-lg">Manage employee profiles and roles</span>
+                </div>
+                <div className="flex items-center space-x-4 text-gray-700">
+                  <div className="w-3 h-3 bg-black rounded-full flex-shrink-0"></div>
+                  <span className="font-medium text-lg">View and edit employee schedules</span>
+                </div>
+                <div className="flex items-center space-x-4 text-gray-700">
+                  <div className="w-3 h-3 bg-black rounded-full flex-shrink-0"></div>
+                  <span className="font-medium text-lg">Access operational tools (e.g., kitchen display)</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => navigate('/staff-login')}
+                className="w-full btn-primary flex items-center justify-center space-x-3 group"
+              >
+                <span>Access Staff Portal</span>
+                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              <div className="mt-6 text-center">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 font-medium mb-2">Credentials Required:</p>
+                  <p className="text-sm text-black">Staff ID and Access Key provided by manager</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

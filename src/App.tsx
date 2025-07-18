@@ -12,6 +12,9 @@ import ManagerDashboard from './pages/ManagerDashboard';
 import RestaurantDetails from './pages/RestaurantDetails';
 import PublicMenuPage from './pages/PublicMenuPage';
 import OrderStatusPage from './pages/OrderStatusPage';
+import StaffLogin from './pages/StaffLogin';
+import CookDashboard from './pages/CookDashboard';
+import WaiterDashboard from './pages/WaiterDashboard';
 
 function App() {
   return (
@@ -30,6 +33,9 @@ function App() {
         <Route path="/manager/dashboard" element={<ManagerDashboard />} />
         <Route path="/menu/:managerId" element={<PublicMenuPage />} />
         <Route path="/order-status/:orderId" element={<OrderStatusPage />} />
+        <Route path="/staff-login" element={<StaffLogin />} />
+        <Route path="/cook/dashboard" element={<CookDashboard />} />
+        <Route path="/waiter/dashboard" element={<WaiterDashboard />} />
       </Routes>
     </Router>
   );

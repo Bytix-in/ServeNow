@@ -84,6 +84,19 @@ export interface Admin {
   created_at: string;
 }
 
+export interface Staff {
+  id: string;
+  restaurant_id: string;
+  full_name: string;
+  phone_number: string;
+  role: 'waiter' | 'cook';
+  staff_id: string;
+  password: string;
+  is_active: boolean;
+  last_login?: string;
+  created_at: string;
+}
+
 // Utility functions
 export const logActivity = async (
   activityType: string,

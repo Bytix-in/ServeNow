@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ClipboardList, Clock, CheckCircle, User, Phone, MapPin, X, Plus, Trash2 } from 'lucide-react';
-import { supabase, logActivity, Dish } from '../lib/supabase';
+import { supabase, logActivity, Dish, Staff } from '../lib/supabase';
 
 interface OrderItem {
   dish_id: string;
@@ -206,6 +206,45 @@ export default function Orders({ restaurantId }: OrdersProps) {
       return;
     }
     try {
+      // Fetch available cooks and waiters
+      const { data: staffList, error: staffError } = await supabase
+        .from('staff')
+        .select('*')
+        .eq('restaurant_id', restaurantId)
+        .eq('is_active', true);
+      if (staffError || !staffList) throw new Error('Failed to fetch staff');
+      const cooks = staffList.filter(s => s.role === 'cook');
+      const waiters = staffList.filter(s => s.role === 'waiter');
+      // Fetch all open orders to count active tasks
+      const { data: openOrders } = await supabase
+        .from('orders')
+        .select('items')
+        .eq('restaurant_id', restaurantId)
+        .in('status', ['pending', 'preparing', 'ready']);
+      const cookTaskCount: Record<string, number> = {};
+      const waiterTaskCount: Record<string, number> = {};
+      cooks.forEach(c => cookTaskCount[c.id] = 0);
+      waiters.forEach(w => waiterTaskCount[w.id] = 0);
+      if (openOrders) {
+        for (const order of openOrders) {
+          for (const item of order.items) {
+            if (item.assigned_cook_id && cookTaskCount[item.assigned_cook_id] !== undefined) cookTaskCount[item.assigned_cook_id]++;
+            if (item.assigned_waiter_id && waiterTaskCount[item.assigned_waiter_id] !== undefined) waiterTaskCount[item.assigned_waiter_id]++;
+          }
+        }
+      }
+      // Assign each dish to the least-busy cook and waiter
+      const assignedItems = addForm.items.map((item) => {
+        const leastBusyCook = cooks.reduce((min, c) => cookTaskCount[c.id] < cookTaskCount[min.id] ? c : min, cooks[0]);
+        const leastBusyWaiter = waiters.reduce((min, w) => waiterTaskCount[w.id] < waiterTaskCount[min.id] ? w : min, waiters[0]);
+        cookTaskCount[leastBusyCook.id]++;
+        waiterTaskCount[leastBusyWaiter.id]++;
+        return {
+          ...item,
+          assigned_cook_id: leastBusyCook ? leastBusyCook.id : null,
+          assigned_waiter_id: leastBusyWaiter ? leastBusyWaiter.id : null,
+        };
+      });
       const total = getOrderTotal();
       const { error } = await supabase.from('orders').insert([
         {
@@ -213,12 +252,7 @@ export default function Orders({ restaurantId }: OrdersProps) {
           customer_name: addForm.customer_name,
           customer_phone: addForm.customer_phone,
           table_number: Number(addForm.table_number),
-          items: addForm.items.map(item => ({
-            dish_id: item.dish_id,
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-          })),
+          items: assignedItems,
           total,
           status: 'pending',
           order_time: new Date().toISOString(),

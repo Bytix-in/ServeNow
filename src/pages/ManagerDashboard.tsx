@@ -14,7 +14,7 @@ import {
   ShoppingBag,
   User
 } from 'lucide-react';
-import { supabase, Restaurant, Order, logActivity } from '../lib/supabase';
+import { supabase, Restaurant, Order, logActivity, Staff } from '../lib/supabase';
 
 import ManagerSidebar from '../components/ManagerSidebar';
 import DishManagement from '../components/DishManagement';
@@ -22,6 +22,7 @@ import TableSetup from '../components/TableSetup';
 import MenuBuilder from '../components/MenuBuilder';
 import Orders from '../components/Orders';
 import Settings from '../components/Settings';
+import StaffManagement from '../components/StaffManagement';
 
 export default function ManagerDashboard() {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -29,6 +30,7 @@ export default function ManagerDashboard() {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [orders, setOrders] = useState<Order[]>([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [staffList, setStaffList] = useState<Staff[]>([]);
   
   const navigate = useNavigate();
 
@@ -44,6 +46,7 @@ export default function ManagerDashboard() {
   useEffect(() => {
     if (restaurant) {
       loadOrders();
+      loadStaff();
     }
   }, [restaurant]);
 
@@ -95,6 +98,22 @@ export default function ManagerDashboard() {
     }
   };
 
+  const loadStaff = async () => {
+    if (!restaurant) return;
+    const { data, error } = await supabase
+      .from('staff')
+      .select('*')
+      .eq('restaurant_id', restaurant.id);
+    if (!error && data) setStaffList(data);
+  };
+
+  // Helper to get staff name by ID
+  const getStaffName = (id: string | null | undefined) => {
+    if (!id) return <span className='text-gray-400'>Unassigned</span>;
+    const staff = staffList.find(s => s.id === id);
+    return staff ? staff.full_name : <span className='text-gray-400'>Unknown</span>;
+  };
+
   const handleLogout = () => {
     const updateRestaurantStatus = async () => {
       if (restaurant) {
@@ -138,6 +157,8 @@ export default function ManagerDashboard() {
         return <TableSetup restaurantId={restaurant?.id || ''} />;
       case 'orders':
         return <Orders restaurantId={restaurant?.id || ''} />;
+      case 'staff':
+        return <StaffManagement restaurantId={restaurant?.id || ''} />;
       case 'settings':
         return <Settings />;
       default:
@@ -215,11 +236,11 @@ export default function ManagerDashboard() {
               Recent Orders
             </h2>
             
-            {recentOrders.length > 0 ? (
+            {recentOrders.length > 0 ?
               <div className="space-y-4">
                 {recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                    <div className="flex items-center space-x-4">
+                  <div key={order.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex items-center space-x-4 mb-2 md:mb-0">
                       <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center">
                         <User className="w-5 h-5 text-white" />
                       </div>
@@ -229,7 +250,7 @@ export default function ManagerDashboard() {
                         <p className="text-xs text-gray-500">{new Date(order.order_time).toLocaleString()}</p>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right mb-2 md:mb-0">
                       <p className="font-bold text-black">${order.total.toFixed(2)}</p>
                       <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
                         order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -240,10 +261,33 @@ export default function ManagerDashboard() {
                         {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                       </span>
                     </div>
+                    {/* Assigned staff table */}
+                    <div className="w-full mt-2">
+                      <table className="min-w-full text-xs border">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="px-2 py-1 text-left">Dish</th>
+                            <th className="px-2 py-1 text-left">Qty</th>
+                            <th className="px-2 py-1 text-left">Cook ID</th>
+                            <th className="px-2 py-1 text-left">Waiter ID</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {order.items.map((item, idx) => (
+                            <tr key={item.dish_id + '-' + idx} className="border-b">
+                              <td className="px-2 py-1">{item.name}</td>
+                              <td className="px-2 py-1">{item.quantity}</td>
+                              <td className="px-2 py-1 font-mono">{getStaffName(item.assigned_cook_id)}</td>
+                              <td className="px-2 py-1 font-mono">{getStaffName(item.assigned_waiter_id)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 ))}
               </div>
-            ) : (
+            :
               <div className="text-center py-12">
                 <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No orders yet</h3>
@@ -270,7 +314,7 @@ export default function ManagerDashboard() {
                   </div>
                 </div>
               </div>
-            )}
+            }
           </div>
         </div>
 
