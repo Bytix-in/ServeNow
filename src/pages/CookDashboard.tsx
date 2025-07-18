@@ -10,6 +10,7 @@ interface AssignedDish {
   status: string;
   customerName: string;
   assignedWaiterId?: string;
+  cookStatus: string;
 }
 
 const CookDashboard: React.FC = () => {
@@ -96,10 +97,22 @@ const CookDashboard: React.FC = () => {
       const updatedItems = order.items.map((item: any) =>
         item.name === dishName ? { ...item, cook_status: nextStatus } : item
       );
+      let updatePayload: any = { items: updatedItems };
+      // If starting to prepare and order is pending, also update order status
+      if (nextStatus === 'preparing' && order.status === 'pending') {
+        updatePayload.status = 'preparing';
+      }
+      // If marking as completed, check if all dishes are completed, then set order status to 'ready'
+      if (nextStatus === 'completed') {
+        const allCompleted = updatedItems.every((item: any) => item.cook_status === 'completed');
+        if (allCompleted) {
+          updatePayload.status = 'ready';
+        }
+      }
       // Update the order row
       const { error: updateError, data: updateData } = await supabase
         .from('orders')
-        .update({ items: updatedItems })
+        .update(updatePayload)
         .eq('id', orderId)
         .select();
       if (updateError) {
@@ -129,13 +142,13 @@ const CookDashboard: React.FC = () => {
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-4">Welcome {cookRole ? cookRole.charAt(0).toUpperCase() + cookRole.slice(1) : ''}{cookName && `, ${cookName}`}</h1>
       <div className="bg-white rounded shadow p-6">
-        <h2 className="text-xl font-semibold mb-2">Assigned Dishes/Orders</h2>
+        <h2 className="text-xl font-semibold mb-2">Assigned Cooking Tasks</h2>
         {loading ? (
           <p>Loading...</p>
         ) : error ? (
           <p className="text-red-500">{error}</p>
-        ) : assignedDishes.length === 0 ? (
-          <p className="text-gray-600">No assigned dishes at the moment.</p>
+        ) : assignedDishes.filter(dish => dish.cookStatus !== 'completed').length === 0 ? (
+          <p className="text-gray-600">No assigned cooking tasks at the moment.</p>
         ) : (
           <table className="min-w-full text-sm mt-2">
             <thead>
@@ -148,7 +161,7 @@ const CookDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {assignedDishes.map((dish, idx) => (
+              {assignedDishes.filter(dish => dish.cookStatus !== 'completed').map((dish, idx) => (
                 <tr key={dish.orderId + '-' + idx} className="border-b">
                   <td className="px-4 py-2">{dish.dishName}</td>
                   <td className="px-4 py-2">{dish.tableNumber}</td>
@@ -162,6 +175,32 @@ const CookDashboard: React.FC = () => {
                       <button onClick={() => updateDishStatus(dish.orderId, dish.dishName, 'completed')} className="bg-green-600 text-white px-2 py-1 rounded text-xs" disabled={updatingDish === dish.dishName}>Mark Completed</button>
                     )}
                   </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {/* Completed Cooking Tasks Section */}
+        <h2 className="text-xl font-semibold mt-8 mb-2">Completed Cooking Tasks</h2>
+        {assignedDishes.filter(dish => dish.cookStatus === 'completed').length === 0 ? (
+          <p className="text-gray-600">No completed cooking tasks yet.</p>
+        ) : (
+          <table className="min-w-full text-sm mt-2">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="px-4 py-2 text-left">Dish</th>
+                <th className="px-4 py-2 text-left">Table</th>
+                <th className="px-4 py-2 text-left">Customer</th>
+                <th className="px-4 py-2 text-left">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {assignedDishes.filter(dish => dish.cookStatus === 'completed').map((dish, idx) => (
+                <tr key={dish.orderId + '-' + idx} className="border-b bg-gray-50">
+                  <td className="px-4 py-2">{dish.dishName}</td>
+                  <td className="px-4 py-2">{dish.tableNumber}</td>
+                  <td className="px-4 py-2">{dish.customerName}</td>
+                  <td className="px-4 py-2 capitalize">Completed</td>
                 </tr>
               ))}
             </tbody>

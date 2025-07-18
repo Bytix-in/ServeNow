@@ -10,6 +10,8 @@ interface AssignedTask {
   status: string;
   customerName: string;
   assignedCookId?: string;
+  cookStatus?: string;
+  waiterStatus?: string;
 }
 
 const WaiterDashboard: React.FC = () => {
@@ -54,6 +56,8 @@ const WaiterDashboard: React.FC = () => {
               status: order.status,
               customerName: order.customer_name,
               assignedCookId: item.assigned_cook_id,
+              cookStatus: item.cook_status,
+              waiterStatus: item.waiter_status,
             });
           }
         }
@@ -144,7 +148,7 @@ const WaiterDashboard: React.FC = () => {
           <p>Loading...</p>
         ) : error ? (
           <p className="text-red-500">{error}</p>
-        ) : assignedTasks.length === 0 ? (
+        ) : assignedTasks.filter(task => task.waiterStatus !== 'served' || task.cookStatus !== 'completed').length === 0 ? (
           <p className="text-gray-600">No assigned serving tasks at the moment.</p>
         ) : (
           <table className="min-w-full text-sm mt-2">
@@ -158,23 +162,49 @@ const WaiterDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {assignedTasks.filter(task => task.dishStatus !== 'served' || task.cookStatus !== 'completed').map((task, idx) => (
+              {assignedTasks.filter(task => task.waiterStatus !== 'served' || task.cookStatus !== 'completed').map((task, idx) => (
                 <tr key={task.orderId + '-' + idx} className="border-b">
                   <td className="px-4 py-2">{task.dishName}</td>
                   <td className="px-4 py-2">{task.tableNumber}</td>
                   <td className="px-4 py-2">{task.customerName}</td>
-                  <td className="px-4 py-2 capitalize">{task.dishStatus || 'pending'}</td>
+                  <td className="px-4 py-2 capitalize">{task.waiterStatus || 'pending'}</td>
                   <td className="px-4 py-2">
-                    {(!task.dishStatus || task.dishStatus === 'pending') && (
+                    {(!task.waiterStatus || task.waiterStatus === 'pending') && (
                       <button onClick={() => updateTaskStatus(task.orderId, task.dishName, 'accepted')} className="bg-blue-600 text-white px-2 py-1 rounded text-xs" disabled={updatingDish === task.dishName}>Accept</button>
                     )}
-                    {task.dishStatus === 'accepted' && (
+                    {task.waiterStatus === 'accepted' && (
                       <button onClick={() => updateTaskStatus(task.orderId, task.dishName, 'served')} className="bg-green-600 text-white px-2 py-1 rounded text-xs" disabled={updatingDish === task.dishName}>Served</button>
                     )}
-                    {task.dishStatus === 'served' && task.cookStatus === 'completed' && (
+                    {task.waiterStatus === 'served' && task.cookStatus === 'completed' && (
                       <span className="bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs">Completed</span>
                     )}
                   </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {/* Work History Section */}
+        <h2 className="text-xl font-semibold mt-8 mb-2">Completed Serving Tasks</h2>
+        {assignedTasks.filter(task => task.waiterStatus === 'served' && task.cookStatus === 'completed').length === 0 ? (
+          <p className="text-gray-600">No completed serving tasks yet.</p>
+        ) : (
+          <table className="min-w-full text-sm mt-2">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="px-4 py-2 text-left">Dish</th>
+                <th className="px-4 py-2 text-left">Table</th>
+                <th className="px-4 py-2 text-left">Customer</th>
+                <th className="px-4 py-2 text-left">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {assignedTasks.filter(task => task.waiterStatus === 'served' && task.cookStatus === 'completed').map((task, idx) => (
+                <tr key={task.orderId + '-' + idx} className="border-b bg-gray-50">
+                  <td className="px-4 py-2">{task.dishName}</td>
+                  <td className="px-4 py-2">{task.tableNumber}</td>
+                  <td className="px-4 py-2">{task.customerName}</td>
+                  <td className="px-4 py-2 capitalize">Completed</td>
                 </tr>
               ))}
             </tbody>
