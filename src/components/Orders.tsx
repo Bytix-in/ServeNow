@@ -326,31 +326,31 @@ export default function Orders({ restaurantId }: OrdersProps) {
                     <button type="button" className="text-blue-600 text-xs mt-1 flex items-center" onClick={handleAddItem}><Plus className="w-4 h-4 mr-1" />Add Item</button>
                   ) : (
                     <>
-                      {addForm.items.map((item, idx) => (
-                        <div key={idx} className="flex items-center space-x-2">
+                  {addForm.items.map((item, idx) => (
+                    <div key={idx} className="flex items-center space-x-2">
                           <select
                             value={item.dish_id}
                             onChange={e => handleAddFormChange(e, idx, 'dish_id')}
-                            className="border rounded px-2 py-1 flex-1"
-                            required
+                        className="border rounded px-2 py-1 flex-1"
+                        required
                           >
                             <option value="">Select dish</option>
                             {menu.map(dish => (
                               <option key={dish.id} value={dish.id}>{dish.name} (${dish.price.toFixed(2)})</option>
                             ))}
                           </select>
-                          <input
-                            type="number"
+                      <input
+                        type="number"
                             min={1}
-                            value={item.quantity}
-                            onChange={e => handleAddFormChange(e, idx, 'quantity')}
-                            className="border rounded px-2 py-1 w-16"
-                            required
-                          />
+                        value={item.quantity}
+                        onChange={e => handleAddFormChange(e, idx, 'quantity')}
+                        className="border rounded px-2 py-1 w-16"
+                        required
+                      />
                           <span className="text-gray-600 text-sm">${(item.price * item.quantity).toFixed(2)}</span>
                           <button type="button" className="text-red-500" onClick={() => handleRemoveItem(idx)} title="Remove item"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                      ))}
+                    </div>
+                  ))}
                       <button type="button" className="text-blue-600 text-xs mt-1 flex items-center" onClick={handleAddItem}><Plus className="w-4 h-4 mr-1" />Add Item</button>
                     </>
                   )}
