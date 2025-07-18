@@ -188,6 +188,16 @@ export default function PublicMenuPage() {
     if (!restaurant || cart.length === 0 || !orderForm.customerName || !orderForm.tableNumber) {
       return;
     }
+    // Request notification permission only on user interaction (place order)
+    if ('Notification' in window && Notification.permission === 'default') {
+      console.log('Requesting notification permission (public user order)...');
+      try {
+        await Notification.requestPermission();
+        console.log('Notification permission result:', Notification.permission);
+      } catch (err) {
+        console.log('Notification.requestPermission() error:', err);
+      }
+    }
     setIsSubmittingOrder(true);
     try {
       // Fetch available cooks and waiters

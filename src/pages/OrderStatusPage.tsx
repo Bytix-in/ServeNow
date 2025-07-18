@@ -49,7 +49,7 @@ function getOrderStatusMessage(status: string, orderId: string, tableNumber: num
 }
 
 function showOrderNotification(orderId: string, status: string, tableNumber: number) {
-  if (Notification.permission === 'granted') {
+  if ('Notification' in window && Notification.permission === 'granted') {
     new Notification('Order Update', {
       body: getOrderStatusMessage(status, orderId, tableNumber)
     });
@@ -66,10 +66,11 @@ export default function OrderStatusPage() {
   const lastNotifiedStatus = useRef<string | null>(null);
 
   useEffect(() => {
-    if (Notification.permission !== 'granted') {
-      Notification.requestPermission();
+    // When order is first loaded, set lastNotifiedStatus to current status to avoid duplicate notification
+    if (order && order.status) {
+      lastNotifiedStatus.current = order.status;
     }
-  }, []);
+  }, [order]);
 
   useEffect(() => {
     if (!orderId) return;
@@ -100,13 +101,6 @@ export default function OrderStatusPage() {
       channel.unsubscribe();
     };
   }, [orderId]);
-
-  useEffect(() => {
-    // When order is first loaded, set lastNotifiedStatus to current status to avoid duplicate notification
-    if (order && order.status) {
-      lastNotifiedStatus.current = order.status;
-    }
-  }, [order]);
 
   useEffect(() => {
     // Start countdown timer

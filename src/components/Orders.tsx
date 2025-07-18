@@ -202,6 +202,17 @@ export default function Orders({ restaurantId }: OrdersProps) {
 
   const handleAddOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Place Order clicked. Notification.permission:', window.Notification && Notification.permission);
+    // Request notification permission only on user interaction (place order)
+    if ('Notification' in window && Notification.permission === 'default') {
+      console.log('Requesting notification permission...');
+      try {
+        await Notification.requestPermission();
+        console.log('Notification permission result:', Notification.permission);
+      } catch (err) {
+        console.log('Notification.requestPermission() error:', err);
+      }
+    }
     setAddError(null);
     setFieldErrors(null);
     setAddLoading(true);
