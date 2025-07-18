@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Store, 
@@ -33,6 +33,7 @@ export default function ManagerDashboard() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   
   const navigate = useNavigate();
+  const ordersChannelRef = useRef<any>(null);
 
   useEffect(() => {
     if (!localStorage.getItem('managerLoggedIn')) {
@@ -48,6 +49,37 @@ export default function ManagerDashboard() {
       loadOrders();
       loadStaff();
     }
+  }, [restaurant]);
+
+  useEffect(() => {
+    if (!restaurant) return;
+
+    // Set up real-time subscription for orders
+    const channel = supabase.channel(`orders-restaurant-${restaurant.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `restaurant_id=eq.${restaurant.id}`,
+        },
+        (payload) => {
+          // On any change, reload orders
+          loadOrders();
+        }
+      )
+      .subscribe();
+
+    ordersChannelRef.current = channel;
+
+    return () => {
+      // Cleanup: Unsubscribe from the channel
+      if (ordersChannelRef.current) {
+        supabase.removeChannel(ordersChannelRef.current);
+        ordersChannelRef.current = null;
+      }
+    };
   }, [restaurant]);
 
   // Fetch orders for the current restaurant
