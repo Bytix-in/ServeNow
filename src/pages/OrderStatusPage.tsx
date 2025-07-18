@@ -48,11 +48,77 @@ function getOrderStatusMessage(status: string, orderId: string, tableNumber: num
   }
 }
 
+function showRegularNotification(orderId: string, status: string, tableNumber: number) {
+  // Android-specific notification options
+  const notificationOptions = {
+    body: getOrderStatusMessage(status, orderId, tableNumber),
+    tag: `order-${orderId}-${status}`, // Prevent duplicate notifications
+    requireInteraction: false,
+    silent: false,
+    vibrate: [200, 100, 200], // Vibration pattern for Android
+    // Only add icon if it exists (optional for better Android support)
+    ...(typeof window !== 'undefined' && {
+      icon: '/favicon.ico',
+      badge: '/favicon.ico'
+    }),
+    actions: [
+      {
+        action: 'view',
+        title: 'View Order'
+      }
+    ]
+  };
+
+  try {
+    const notification = new Notification('Order Update', notificationOptions);
+    // Handle notification click
+    notification.onclick = function() {
+      window.focus();
+      this.close();
+    };
+    // Auto-close notification after 5 seconds on Android
+    if (/Android/i.test(navigator.userAgent)) {
+      setTimeout(() => {
+        notification.close();
+      }, 5000);
+    }
+  } catch (error) {
+    console.error('Error showing notification:', error);
+    // Fallback for older browsers
+    try {
+      new Notification('Order Update', {
+        body: getOrderStatusMessage(status, orderId, tableNumber)
+      });
+    } catch (fallbackError) {
+      console.error('Fallback notification also failed:', fallbackError);
+    }
+  }
+}
+
 function showOrderNotification(orderId: string, status: string, tableNumber: number) {
   if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification('Order Update', {
-      body: getOrderStatusMessage(status, orderId, tableNumber)
-    });
+    // Check if we're on Android
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    console.log('Showing notification on Android:', isAndroid);
+    // For Android, try to use service worker if available
+    if (isAndroid && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      console.log('Using service worker for notification');
+      navigator.serviceWorker.ready.then(function(registration) {
+        registration.showNotification('Order Update', {
+          body: getOrderStatusMessage(status, orderId, tableNumber),
+          tag: `order-${orderId}-${status}`,
+          requireInteraction: false,
+          silent: false,
+          vibrate: [200, 100, 200]
+        });
+      }).catch(function(error) {
+        console.error('Service worker notification failed:', error);
+        // Fall back to regular notification
+        showRegularNotification(orderId, status, tableNumber);
+      });
+      return;
+    }
+    showRegularNotification(orderId, status, tableNumber);
   }
 }
 
