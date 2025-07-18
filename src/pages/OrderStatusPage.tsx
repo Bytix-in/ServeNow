@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Clock, CheckCircle, User, Phone, MapPin, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -30,6 +30,32 @@ interface Restaurant {
   phone_number: string;
 }
 
+function getOrderStatusMessage(status: string, orderId: string, tableNumber: number): string {
+  const id = orderId.slice(-8).toUpperCase();
+  switch (status) {
+    case 'preparing':
+      return `🥘 Your food just started its journey from raw to WOW! (Order #${id}, Table ${tableNumber})`;
+    case 'food_prepared':
+      return `🍽️ Your food’s ready and posing for a plate-selfie! (Order #${id}, Table ${tableNumber})`;
+    case 'serving':
+      return `🍛 Your food’s doing a runway walk to your table! (Order #${id}, Table ${tableNumber})`;
+    case 'served':
+      return `🍴 Forks up! Your food has landed, Enjoy your meal. (Order #${id}, Table ${tableNumber})`;
+    case 'completed':
+      return `😋 Plate cleaned, hearts full. Come back soon! (Order #${id}, Table ${tableNumber})`;
+    default:
+      return `Your order status has been updated to ${status}. (Order #${id}, Table ${tableNumber})`;
+  }
+}
+
+function showOrderNotification(orderId: string, status: string, tableNumber: number) {
+  if (Notification.permission === 'granted') {
+    new Notification('Order Update', {
+      body: getOrderStatusMessage(status, orderId, tableNumber)
+    });
+  }
+}
+
 export default function OrderStatusPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const [order, setOrder] = useState<Order | null>(null);
@@ -37,6 +63,13 @@ export default function OrderStatusPage() {
   const [loading, setLoading] = useState(true);
   const [timeRemaining, setTimeRemaining] = useState(1080); // 18 minutes in seconds
   const [error, setError] = useState('');
+  const lastNotifiedStatus = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   useEffect(() => {
     if (!orderId) return;
@@ -53,7 +86,13 @@ export default function OrderStatusPage() {
           filter: `id=eq.${orderId}`
         },
         (payload) => {
-          setOrder(payload.new as Order);
+          const updatedOrder = payload.new as Order;
+          setOrder(updatedOrder);
+          // Only notify if status changed and user is viewing this order
+          if (updatedOrder && updatedOrder.status && lastNotifiedStatus.current !== updatedOrder.status) {
+            showOrderNotification(updatedOrder.id, updatedOrder.status, updatedOrder.table_number);
+            lastNotifiedStatus.current = updatedOrder.status;
+          }
         }
       )
       .subscribe();
@@ -61,6 +100,13 @@ export default function OrderStatusPage() {
       channel.unsubscribe();
     };
   }, [orderId]);
+
+  useEffect(() => {
+    // When order is first loaded, set lastNotifiedStatus to current status to avoid duplicate notification
+    if (order && order.status) {
+      lastNotifiedStatus.current = order.status;
+    }
+  }, [order]);
 
   useEffect(() => {
     // Start countdown timer
