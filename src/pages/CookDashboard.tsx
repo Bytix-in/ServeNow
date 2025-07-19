@@ -142,15 +142,24 @@ const CookDashboard: React.FC = () => {
     
     // Try browser notifications first (use current permission, not state)
     console.log('[CookDashboard] Current permission:', currentPermission, 'State permission:', notificationPermission);
+    console.log('[CookDashboard] Notification API available:', 'Notification' in window);
+    console.log('[CookDashboard] Tab focused:', document.hasFocus());
+    
     if ('Notification' in window && currentPermission === 'granted') {
       try {
         console.log('[CookDashboard] Attempting to show browser notification...');
+        
+        // Check if tab is focused (Chrome requirement)
+        if (!document.hasFocus()) {
+          console.log('[CookDashboard] Tab not focused - Chrome may not show notification');
+        }
+        
         const notification = new Notification('New Cooking Task Assigned!', {
           body: `${dishName} for Table ${tableNumber} (${customerName})`,
           icon: '/vite.svg',
           badge: '/vite.svg',
-          tag: 'cook-task-new', // Changed tag to avoid conflicts
-          requireInteraction: false, // Changed to false for better compatibility
+          tag: 'cook-task-new',
+          requireInteraction: false,
           silent: false
         });
 
@@ -165,35 +174,59 @@ const CookDashboard: React.FC = () => {
           notification.close();
         };
         
-        console.log('[CookDashboard] Browser notification sent successfully');
+        // Handle notification show event
+        notification.onshow = () => {
+          console.log('[CookDashboard] Browser notification shown successfully');
+        };
+        
+        // Handle notification error event
+        notification.onerror = (error: any) => {
+          console.error('[CookDashboard] Browser notification error:', error);
+        };
+        
+        console.log('[CookDashboard] Browser notification created successfully');
       } catch (error) {
         console.error('[CookDashboard] Browser notification failed:', error);
+        if (error instanceof Error) {
+          console.error('[CookDashboard] Error details:', error.message, error.stack);
+        }
       }
     } else {
-      console.log('[CookDashboard] Browser notifications not available or not granted. Permission:', notificationPermission);
+      console.log('[CookDashboard] Browser notifications not available or not granted. Permission:', currentPermission);
+      console.log('[CookDashboard] Notification API available:', 'Notification' in window);
     }
     
     // Enhanced mobile-friendly notifications (works on all devices)
     toast.success(message, {
-      duration: 12000, // Longer duration for mobile
+      duration: 15000, // Even longer duration for mobile
       position: 'top-center',
       style: {
         background: 'linear-gradient(135deg, #10B981, #059669)',
         color: 'white',
-        fontSize: '18px',
+        fontSize: '20px',
         fontWeight: 'bold',
-        padding: '20px',
-        borderRadius: '12px',
-        maxWidth: '90vw',
+        padding: '24px',
+        borderRadius: '16px',
+        maxWidth: '95vw',
         textAlign: 'center',
-        boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)',
-        border: '2px solid #047857'
+        boxShadow: '0 15px 35px rgba(16, 185, 129, 0.4)',
+        border: '3px solid #047857',
+        animation: 'pulse 2s infinite'
       }
     });
     
     // Also show visual alert in UI
     setNewTaskAlert(message);
     setTimeout(() => setNewTaskAlert(null), 8000);
+    
+    // Try to play notification sound (mobile-friendly)
+    try {
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
+      audio.volume = 0.3;
+      audio.play().catch(() => {}); // Ignore errors if audio fails
+    } catch (error) {
+      // Audio not supported, continue silently
+    }
     
     console.log('[CookDashboard] Toast notification sent:', message);
   };
@@ -343,7 +376,7 @@ const CookDashboard: React.FC = () => {
           <div className="flex items-center space-x-2 text-sm">
             <div className={`w-3 h-3 rounded-full ${notificationPermission === 'granted' ? 'bg-green-500' : 'bg-red-500'}`}></div>
             <span className={notificationPermission === 'granted' ? 'text-green-600' : 'text-red-600'}>
-              {notificationPermission === 'granted' ? 'Browser + App Alerts' : 'App Alerts Only'}
+              {notificationPermission === 'granted' ? 'Desktop: Browser + App Alerts' : 'Mobile: App Alerts Only'}
             </span>
             {notificationPermission !== 'granted' && (
               <button
