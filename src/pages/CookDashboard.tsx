@@ -30,7 +30,6 @@ const CookDashboard: React.FC = () => {
   const [updatingDish, setUpdatingDish] = useState<string | null>(null);
   const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
-  const [newTaskAlert, setNewTaskAlert] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('[CookDashboard] useEffect mount');
@@ -196,39 +195,7 @@ const CookDashboard: React.FC = () => {
       console.log('[CookDashboard] Notification API available:', 'Notification' in window);
     }
     
-    // Enhanced mobile-friendly notifications (works on all devices)
-    toast.success(message, {
-      duration: 15000, // Even longer duration for mobile
-      position: 'top-center',
-      style: {
-        background: 'linear-gradient(135deg, #10B981, #059669)',
-        color: 'white',
-        fontSize: '20px',
-        fontWeight: 'bold',
-        padding: '24px',
-        borderRadius: '16px',
-        maxWidth: '95vw',
-        textAlign: 'center',
-        boxShadow: '0 15px 35px rgba(16, 185, 129, 0.4)',
-        border: '3px solid #047857',
-        animation: 'pulse 2s infinite'
-      }
-    });
-    
-    // Also show visual alert in UI
-    setNewTaskAlert(message);
-    setTimeout(() => setNewTaskAlert(null), 8000);
-    
-    // Try to play notification sound (mobile-friendly)
-    try {
-      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
-      audio.volume = 0.3;
-      audio.play().catch(() => {}); // Ignore errors if audio fails
-    } catch (error) {
-      // Audio not supported, continue silently
-    }
-    
-    console.log('[CookDashboard] Toast notification sent:', message);
+    console.log('[CookDashboard] Browser notification attempt completed');
   };
 
   const fetchAssignedDishes = async (cook: Cook) => {
@@ -359,16 +326,6 @@ const CookDashboard: React.FC = () => {
 
   return (
     <div className="p-8">
-      {/* Enhanced Mobile-Friendly New Task Alert */}
-      {newTaskAlert && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 rounded-xl shadow-2xl z-50 animate-pulse max-w-[95vw] text-center border-2 border-green-500">
-          <div className="flex items-center justify-center space-x-3">
-            <div className="w-5 h-5 bg-white rounded-full animate-ping"></div>
-            <span className="font-bold text-lg">{newTaskAlert}</span>
-            <div className="w-5 h-5 bg-white rounded-full animate-ping" style={{animationDelay: '0.5s'}}></div>
-          </div>
-        </div>
-      )}
       
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Welcome {cookRole ? cookRole.charAt(0).toUpperCase() + cookRole.slice(1) : ''}{cookName && `, ${cookName}`}</h1>
