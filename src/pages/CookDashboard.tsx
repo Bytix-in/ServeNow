@@ -129,17 +129,20 @@ const CookDashboard: React.FC = () => {
   const showNotification = (dishName: string, tableNumber: number, customerName: string) => {
     const message = `New Cooking Task: ${dishName} for Table ${tableNumber} (${customerName})`;
     
-    // Update permission state before checking
+    // Always check current permission state (don't rely on state)
+    let currentPermission = 'default';
     if ('Notification' in window) {
-      const currentPermission = Notification.permission;
+      currentPermission = Notification.permission;
+      // Update state if it changed
       if (currentPermission !== notificationPermission) {
         console.log('[CookDashboard] Permission state updated from', notificationPermission, 'to', currentPermission);
-        setNotificationPermission(currentPermission);
+        setNotificationPermission(currentPermission as NotificationPermission);
       }
     }
     
-    // Try browser notifications first
-    if ('Notification' in window && notificationPermission === 'granted') {
+    // Try browser notifications first (use current permission, not state)
+    console.log('[CookDashboard] Current permission:', currentPermission, 'State permission:', notificationPermission);
+    if ('Notification' in window && currentPermission === 'granted') {
       try {
         console.log('[CookDashboard] Attempting to show browser notification...');
         const notification = new Notification('New Cooking Task Assigned!', {
@@ -170,18 +173,21 @@ const CookDashboard: React.FC = () => {
       console.log('[CookDashboard] Browser notifications not available or not granted. Permission:', notificationPermission);
     }
     
-    // Always show fallback notifications (works on all devices)
+    // Enhanced mobile-friendly notifications (works on all devices)
     toast.success(message, {
-      duration: 8000,
+      duration: 12000, // Longer duration for mobile
       position: 'top-center',
       style: {
-        background: '#10B981',
+        background: 'linear-gradient(135deg, #10B981, #059669)',
         color: 'white',
-        fontSize: '16px',
-        padding: '16px',
-        borderRadius: '8px',
-        maxWidth: '400px',
-        textAlign: 'center'
+        fontSize: '18px',
+        fontWeight: 'bold',
+        padding: '20px',
+        borderRadius: '12px',
+        maxWidth: '90vw',
+        textAlign: 'center',
+        boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)',
+        border: '2px solid #047857'
       }
     });
     
@@ -320,12 +326,13 @@ const CookDashboard: React.FC = () => {
 
   return (
     <div className="p-8">
-      {/* New Task Alert */}
+      {/* Enhanced Mobile-Friendly New Task Alert */}
       {newTaskAlert && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-pulse max-w-md text-center">
-          <div className="flex items-center justify-center space-x-2">
-            <div className="w-4 h-4 bg-white rounded-full animate-ping"></div>
-            <span className="font-semibold">{newTaskAlert}</span>
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 rounded-xl shadow-2xl z-50 animate-pulse max-w-[95vw] text-center border-2 border-green-500">
+          <div className="flex items-center justify-center space-x-3">
+            <div className="w-5 h-5 bg-white rounded-full animate-ping"></div>
+            <span className="font-bold text-lg">{newTaskAlert}</span>
+            <div className="w-5 h-5 bg-white rounded-full animate-ping" style={{animationDelay: '0.5s'}}></div>
           </div>
         </div>
       )}
@@ -336,7 +343,7 @@ const CookDashboard: React.FC = () => {
           <div className="flex items-center space-x-2 text-sm">
             <div className={`w-3 h-3 rounded-full ${notificationPermission === 'granted' ? 'bg-green-500' : 'bg-red-500'}`}></div>
             <span className={notificationPermission === 'granted' ? 'text-green-600' : 'text-red-600'}>
-              {notificationPermission === 'granted' ? 'Notifications Enabled' : 'Notifications Disabled'}
+              {notificationPermission === 'granted' ? 'Browser + App Alerts' : 'App Alerts Only'}
             </span>
             {notificationPermission !== 'granted' && (
               <button
