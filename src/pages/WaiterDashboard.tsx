@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, Order } from '../lib/supabase';
 import toast from 'react-hot-toast';
-import { showStaffNotification } from '../lib/notifications';
 
 interface AssignedTask {
   orderId: string;
@@ -37,7 +36,7 @@ const WaiterDashboard: React.FC = () => {
   const [updatingDish, setUpdatingDish] = useState<string | null>(null);
 
   useEffect(() => {
-    let waiter: any = null;
+    let waiter = null;
     const staff = sessionStorage.getItem('staff');
     if (staff) {
       waiter = JSON.parse(staff);
@@ -75,16 +74,23 @@ const WaiterDashboard: React.FC = () => {
   }, [navigate]);
 
   const showNotification = (orderId: string, tableNumber: number) => {
-    showStaffNotification('ServeNow', {
-      body: `🧑‍🍽️ New table to serve! (Order #${orderId}, Table ${tableNumber})`,
-      tag: `waiter-task-${orderId}-${tableNumber}`,
-      icon: '/vite.svg',
-      badge: '/favicon.ico',
-      vibrate: [200, 100, 200],
-      actions: [
-        { action: 'view', title: 'View Task' }
-      ]
-    });
+    const message = `🧑‍🍽️ New table to serve! (Order #${orderId}, Table ${tableNumber})`;
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        const notification = new Notification('ServeNow', {
+          body: message,
+          icon: '/vite.svg',
+          tag: `waiter-task-${orderId}-${tableNumber}`,
+        });
+        setTimeout(() => notification.close(), 10000);
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      } catch (error) {
+        // fallback: do nothing
+      }
+    }
   };
 
   const fetchAssignedTasks = async (waiter: any) => {
