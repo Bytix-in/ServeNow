@@ -13,6 +13,13 @@ interface AssignedDish {
   cookStatus: string;
 }
 
+interface Cook {
+  id: string;
+  full_name: string;
+  role: string;
+  restaurant_id: string;
+}
+
 const CookDashboard: React.FC = () => {
   const [cookName, setCookName] = useState('');
   const [assignedDishes, setAssignedDishes] = useState<AssignedDish[]>([]);
@@ -21,46 +28,104 @@ const CookDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [cookRole, setCookRole] = useState('');
   const [updatingDish, setUpdatingDish] = useState<string | null>(null);
+  const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
 
   useEffect(() => {
     console.log('[CookDashboard] useEffect mount');
-    let cook = null;
+    let cook: Cook | null = null;
     const staff = sessionStorage.getItem('staff');
     if (staff) {
       cook = JSON.parse(staff);
-      setCookName(cook.full_name);
-      setCookRole(cook.role || '');
-      fetchAssignedDishes(cook);
-      // --- Realtime subscription for orders ---
-      const channel = supabase
-        .channel('cook-orders-realtime')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'orders',
-            filter: `restaurant_id=eq.${cook.restaurant_id}`
-          },
-          (payload) => {
-            fetchAssignedDishes(cook);
-          }
-        )
-        .subscribe();
-      return () => {
-        channel.unsubscribe();
-      };
+      if (cook) {
+        setCookName(cook.full_name);
+        setCookRole(cook.role || '');
+        
+        // Initialize notification permission state
+        if ('Notification' in window) {
+          setNotificationPermission(Notification.permission);
+        }
+        
+        // Request notification permission on component mount
+        requestNotificationPermission();
+        
+        fetchAssignedDishes(cook);
+        // --- Realtime subscription for orders ---
+        const channel = supabase
+          .channel('cook-orders-realtime')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'orders',
+              filter: `restaurant_id=eq.${cook.restaurant_id}`
+            },
+            (payload) => {
+              console.log('[CookDashboard] Real-time event received:', payload);
+              if (cook) {
+                console.log('[CookDashboard] Calling fetchAssignedDishes from real-time event');
+                fetchAssignedDishes(cook);
+              }
+            }
+          )
+          .subscribe();
+        return () => {
+          channel.unsubscribe();
+        };
+      }
     } else {
       console.log('[CookDashboard] No staff session found, redirecting to login');
       navigate('/staff-login');
     }
   }, [navigate]);
 
-  const fetchAssignedDishes = async (cook: any) => {
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      if (Notification.permission === 'default') {
+        try {
+          const permission = await Notification.requestPermission();
+          console.log('[CookDashboard] Notification permission:', permission);
+          setNotificationPermission(permission);
+        } catch (err) {
+          console.error('[CookDashboard] Error requesting notification permission:', err);
+        }
+      }
+    }
+  };
+
+  const showNotification = (dishName: string, tableNumber: number, customerName: string) => {
+    if ('Notification' in window && notificationPermission === 'granted') {
+      const notification = new Notification('New Cooking Task Assigned!', {
+        body: `${dishName} for Table ${tableNumber} (${customerName})`,
+        icon: '/vite.svg', // You can replace this with a custom icon
+        badge: '/vite.svg',
+        tag: 'cook-task', // This prevents duplicate notifications
+        requireInteraction: true, // Keep notification until user interacts
+        silent: false
+      });
+
+      // Auto-close notification after 10 seconds (longer duration)
+      setTimeout(() => {
+        notification.close();
+      }, 10000);
+
+      // Handle notification click
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    }
+  };
+
+  const fetchAssignedDishes = async (cook: Cook) => {
     setLoading(true);
     setError('');
     try {
       console.log('[CookDashboard] fetchAssignedDishes called for cook:', cook);
+      console.log('[CookDashboard] Cook ID:', cook.id);
+      console.log('[CookDashboard] Restaurant ID:', cook.restaurant_id);
+      
       // Get all orders for the cook's restaurant
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
@@ -68,12 +133,19 @@ const CookDashboard: React.FC = () => {
         .eq('restaurant_id', cook.restaurant_id);
       if (ordersError) throw ordersError;
       console.log('[CookDashboard] Fetched orders:', orders);
+      console.log('[CookDashboard] Number of orders found:', orders?.length || 0);
+      
       // Flatten all assigned dishes for this cook using id (UUID)
       const assigned: AssignedDish[] = [];
+      const newTasks: AssignedDish[] = [];
+      
       for (const order of orders) {
+        console.log('[CookDashboard] Processing order:', order.id);
+        console.log('[CookDashboard] Order items:', order.items);
         for (const item of order.items) {
+          console.log('[CookDashboard] Checking item:', item.name, 'assigned_cook_id:', item.assigned_cook_id, 'cook.id:', cook.id);
           if (item.assigned_cook_id === cook.id) {
-            assigned.push({
+            const assignedDish: AssignedDish = {
               orderId: order.id,
               dishName: item.name,
               tableNumber: order.table_number,
@@ -81,12 +153,30 @@ const CookDashboard: React.FC = () => {
               customerName: order.customer_name,
               assignedWaiterId: item.assigned_waiter_id,
               cookStatus: item.cook_status,
-            });
+            };
+            
+            assigned.push(assignedDish);
+            
+            // Check if this is a new task that hasn't been notified yet
+            const taskKey = `${order.id}-${item.name}`;
+            if (!notifiedTasks.has(taskKey) && (!item.cook_status || item.cook_status === 'pending')) {
+              newTasks.push(assignedDish);
+              setNotifiedTasks(prev => new Set([...prev, taskKey]));
+            }
           }
         }
       }
+      
       console.log('[CookDashboard] Filtered assigned dishes:', assigned);
       setAssignedDishes(assigned);
+      
+      // Show notifications for new tasks
+      console.log('[CookDashboard] New tasks to notify:', newTasks);
+      newTasks.forEach(task => {
+        console.log('[CookDashboard] Showing notification for:', task);
+        showNotification(task.dishName, task.tableNumber, task.customerName);
+      });
+      
     } catch (err: any) {
       console.error('[CookDashboard] Error in fetchAssignedDishes:', err);
       setError('Failed to load assigned dishes.');
@@ -152,7 +242,32 @@ const CookDashboard: React.FC = () => {
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Welcome {cookRole ? cookRole.charAt(0).toUpperCase() + cookRole.slice(1) : ''}{cookName && `, ${cookName}`}</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Welcome {cookRole ? cookRole.charAt(0).toUpperCase() + cookRole.slice(1) : ''}{cookName && `, ${cookName}`}</h1>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 text-sm">
+            <div className={`w-3 h-3 rounded-full ${notificationPermission === 'granted' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <span className={notificationPermission === 'granted' ? 'text-green-600' : 'text-red-600'}>
+              {notificationPermission === 'granted' ? 'Notifications Enabled' : 'Notifications Disabled'}
+            </span>
+            {notificationPermission !== 'granted' && (
+              <button
+                onClick={requestNotificationPermission}
+                className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+              >
+                Enable
+              </button>
+            )}
+
+          </div>
+          <button
+            onClick={handleLogout}
+            className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 transition-colors"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
       <div className="bg-white rounded shadow p-6">
         <h2 className="text-xl font-semibold mb-2">Assigned Cooking Tasks</h2>
         {loading ? (
