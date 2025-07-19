@@ -14,6 +14,19 @@ interface AssignedTask {
   waiterStatus?: string;
 }
 
+// Utility functions for notified tasks
+const getNotifiedTasks = (staffId: string) => {
+  const key = `notifiedTasks-${staffId}-waiter`;
+  const stored = localStorage.getItem(key);
+  return stored ? new Set<string>(JSON.parse(stored)) : new Set<string>();
+};
+const addNotifiedTask = (staffId: string, taskKey: string) => {
+  const key = `notifiedTasks-${staffId}-waiter`;
+  const notified = getNotifiedTasks(staffId);
+  notified.add(taskKey);
+  localStorage.setItem(key, JSON.stringify(Array.from(notified)));
+};
+
 const WaiterDashboard: React.FC = () => {
   const [waiterName, setWaiterName] = useState('');
   const [assignedTasks, setAssignedTasks] = useState<AssignedTask[]>([]);
@@ -28,6 +41,12 @@ const WaiterDashboard: React.FC = () => {
     if (staff) {
       waiter = JSON.parse(staff);
       setWaiterName(waiter.full_name);
+      // Initialize notification permission state
+      if ('Notification' in window) {
+        if (Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+      }
       fetchAssignedTasks(waiter);
       // --- Realtime subscription for orders ---
       const channel = supabase
@@ -54,6 +73,26 @@ const WaiterDashboard: React.FC = () => {
     // eslint-disable-next-line
   }, [navigate]);
 
+  const showNotification = (orderId: string, tableNumber: number) => {
+    const message = `🧑‍🍽️ New table to serve! (Order #${orderId}, Table ${tableNumber})`;
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        const notification = new Notification('ServeNow', {
+          body: message,
+          icon: '/vite.svg',
+          tag: `waiter-task-${orderId}-${tableNumber}`,
+        });
+        setTimeout(() => notification.close(), 10000);
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      } catch (error) {
+        // fallback: do nothing
+      }
+    }
+  };
+
   const fetchAssignedTasks = async (waiter: any) => {
     setLoading(true);
     setError('');
@@ -66,10 +105,12 @@ const WaiterDashboard: React.FC = () => {
       if (ordersError) throw ordersError;
       // Flatten all assigned tasks for this waiter
       const assigned: AssignedTask[] = [];
+      const newTasks: { taskKey: string; task: AssignedTask }[] = [];
+      const notified = getNotifiedTasks(waiter.id);
       for (const order of orders) {
         for (const item of order.items) {
           if (item.assigned_waiter_id === waiter.id) {
-            assigned.push({
+            const task: AssignedTask = {
               orderId: order.id,
               dishName: item.name,
               tableNumber: order.table_number,
@@ -78,11 +119,20 @@ const WaiterDashboard: React.FC = () => {
               assignedCookId: item.assigned_cook_id,
               cookStatus: item.cook_status,
               waiterStatus: item.waiter_status,
-            });
+            };
+            assigned.push(task);
+            const taskKey = `${order.id}-${item.name}`;
+            if (!notified.has(taskKey) && (!item.waiter_status || item.waiter_status === 'pending')) {
+              newTasks.push({ taskKey, task });
+              addNotifiedTask(waiter.id, taskKey);
+            }
           }
         }
       }
       setAssignedTasks(assigned);
+      newTasks.forEach(({ task }) => {
+        showNotification(task.orderId, task.tableNumber);
+      });
     } catch (err: any) {
       setError('Failed to load assigned tasks.');
     } finally {
