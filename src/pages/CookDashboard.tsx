@@ -30,6 +30,7 @@ const CookDashboard: React.FC = () => {
   const [updatingDish, setUpdatingDish] = useState<string | null>(null);
   const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [newTaskAlert, setNewTaskAlert] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('[CookDashboard] useEffect mount');
@@ -44,6 +45,7 @@ const CookDashboard: React.FC = () => {
         // Initialize notification permission state
         if ('Notification' in window) {
           setNotificationPermission(Notification.permission);
+          console.log('[CookDashboard] Initial notification permission:', Notification.permission);
         }
         
         // Request notification permission on component mount
@@ -87,35 +89,107 @@ const CookDashboard: React.FC = () => {
           const permission = await Notification.requestPermission();
           console.log('[CookDashboard] Notification permission:', permission);
           setNotificationPermission(permission);
+          
+          // Show feedback based on permission result
+          if (permission === 'granted') {
+            toast.success('Notifications enabled! You will receive alerts for new tasks.', {
+              duration: 4000,
+              position: 'top-center'
+            });
+          } else if (permission === 'denied') {
+            toast.error('Notifications disabled. You can still see alerts in the app.', {
+              duration: 4000,
+              position: 'top-center'
+            });
+          }
         } catch (err) {
           console.error('[CookDashboard] Error requesting notification permission:', err);
+          toast.error('Could not request notification permission. Alerts will show in the app.', {
+            duration: 4000,
+            position: 'top-center'
+          });
         }
+      } else {
+        // Permission already set
+        setNotificationPermission(Notification.permission);
       }
+    } else {
+      // Notifications not supported
+      toast('Browser notifications not supported. Alerts will show in the app.', {
+        duration: 4000,
+        position: 'top-center',
+        style: {
+          background: '#3B82F6',
+          color: 'white'
+        }
+      });
     }
   };
 
   const showNotification = (dishName: string, tableNumber: number, customerName: string) => {
-    if ('Notification' in window && notificationPermission === 'granted') {
-      const notification = new Notification('New Cooking Task Assigned!', {
-        body: `${dishName} for Table ${tableNumber} (${customerName})`,
-        icon: '/vite.svg', // You can replace this with a custom icon
-        badge: '/vite.svg',
-        tag: 'cook-task', // This prevents duplicate notifications
-        requireInteraction: true, // Keep notification until user interacts
-        silent: false
-      });
-
-      // Auto-close notification after 10 seconds (longer duration)
-      setTimeout(() => {
-        notification.close();
-      }, 10000);
-
-      // Handle notification click
-      notification.onclick = () => {
-        window.focus();
-        notification.close();
-      };
+    const message = `New Cooking Task: ${dishName} for Table ${tableNumber} (${customerName})`;
+    
+    // Update permission state before checking
+    if ('Notification' in window) {
+      const currentPermission = Notification.permission;
+      if (currentPermission !== notificationPermission) {
+        console.log('[CookDashboard] Permission state updated from', notificationPermission, 'to', currentPermission);
+        setNotificationPermission(currentPermission);
+      }
     }
+    
+    // Try browser notifications first
+    if ('Notification' in window && notificationPermission === 'granted') {
+      try {
+        console.log('[CookDashboard] Attempting to show browser notification...');
+        const notification = new Notification('New Cooking Task Assigned!', {
+          body: `${dishName} for Table ${tableNumber} (${customerName})`,
+          icon: '/vite.svg',
+          badge: '/vite.svg',
+          tag: 'cook-task-new', // Changed tag to avoid conflicts
+          requireInteraction: false, // Changed to false for better compatibility
+          silent: false
+        });
+
+        // Auto-close notification after 10 seconds
+        setTimeout(() => {
+          notification.close();
+        }, 10000);
+
+        // Handle notification click
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+        
+        console.log('[CookDashboard] Browser notification sent successfully');
+      } catch (error) {
+        console.error('[CookDashboard] Browser notification failed:', error);
+      }
+    } else {
+      console.log('[CookDashboard] Browser notifications not available or not granted. Permission:', notificationPermission);
+    }
+    
+    // Always show fallback notifications (works on all devices)
+    toast.success(message, {
+      duration: 8000,
+      position: 'top-center',
+      style: {
+        background: '#10B981',
+        color: 'white',
+        fontSize: '16px',
+        padding: '16px',
+        borderRadius: '8px',
+        maxWidth: '400px',
+        textAlign: 'center'
+      }
+    });
+    
+    // Also show visual alert in UI
+    setNewTaskAlert(message);
+    setTimeout(() => setNewTaskAlert(null), 8000);
+    
+    console.log('[CookDashboard] Toast notification sent:', message);
   };
 
   const fetchAssignedDishes = async (cook: Cook) => {
@@ -159,9 +233,13 @@ const CookDashboard: React.FC = () => {
             
             // Check if this is a new task that hasn't been notified yet
             const taskKey = `${order.id}-${item.name}`;
+            console.log('[CookDashboard] Checking task:', taskKey, 'already notified:', notifiedTasks.has(taskKey), 'cook_status:', item.cook_status);
             if (!notifiedTasks.has(taskKey) && (!item.cook_status || item.cook_status === 'pending')) {
+              console.log('[CookDashboard] Adding new task for notification:', taskKey);
               newTasks.push(assignedDish);
               setNotifiedTasks(prev => new Set([...prev, taskKey]));
+            } else {
+              console.log('[CookDashboard] Task already notified or not pending:', taskKey);
             }
           }
         }
@@ -242,6 +320,16 @@ const CookDashboard: React.FC = () => {
 
   return (
     <div className="p-8">
+      {/* New Task Alert */}
+      {newTaskAlert && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-pulse max-w-md text-center">
+          <div className="flex items-center justify-center space-x-2">
+            <div className="w-4 h-4 bg-white rounded-full animate-ping"></div>
+            <span className="font-semibold">{newTaskAlert}</span>
+          </div>
+        </div>
+      )}
+      
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Welcome {cookRole ? cookRole.charAt(0).toUpperCase() + cookRole.slice(1) : ''}{cookName && `, ${cookName}`}</h1>
         <div className="flex items-center space-x-4">
@@ -256,6 +344,27 @@ const CookDashboard: React.FC = () => {
                 className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
               >
                 Enable
+              </button>
+            )}
+            {notificationPermission === 'granted' && (
+              <button
+                onClick={() => showNotification('Test Dish', 1, 'Test Customer')}
+                className="ml-2 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                title="Test browser notification"
+              >
+                Test Browser
+              </button>
+            )}
+            {notificationPermission === 'default' && (
+              <button
+                onClick={() => {
+                  setNotificationPermission(Notification.permission);
+                  requestNotificationPermission();
+                }}
+                className="ml-2 px-2 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700 transition-colors"
+                title="Refresh permission status"
+              >
+                Refresh
               </button>
             )}
 
