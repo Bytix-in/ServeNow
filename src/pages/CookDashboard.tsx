@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, Order } from '../lib/supabase';
 import toast from 'react-hot-toast';
+import { showStaffNotification } from '../lib/notifications';
 
 interface AssignedDish {
   orderId: string;
@@ -139,73 +140,16 @@ const CookDashboard: React.FC = () => {
   };
 
   const showNotification = (orderId: string, tableNumber: number) => {
-    const message = `👨‍🍳 New dish assigned to prepare! (Order #${orderId}, Table ${tableNumber})`;
-    
-    // Always check current permission state (don't rely on state)
-    let currentPermission = 'default';
-    if ('Notification' in window) {
-      currentPermission = Notification.permission;
-      // Update state if it changed
-      if (currentPermission !== notificationPermission) {
-        console.log('[CookDashboard] Permission state updated from', notificationPermission, 'to', currentPermission);
-        setNotificationPermission(currentPermission as NotificationPermission);
-      }
-    }
-    
-    // Try browser notifications first (use current permission, not state)
-    console.log('[CookDashboard] Current permission:', currentPermission, 'State permission:', notificationPermission);
-    console.log('[CookDashboard] Notification API available:', 'Notification' in window);
-    console.log('[CookDashboard] Tab focused:', document.hasFocus());
-    
-    if ('Notification' in window && currentPermission === 'granted') {
-      try {
-        console.log('[CookDashboard] Attempting to show browser notification...');
-        
-        // Check if tab is focused (Chrome requirement)
-        if (!document.hasFocus()) {
-          console.log('[CookDashboard] Tab not focused - Chrome may not show notification');
-        }
-        
-        const notification = new Notification('ServeNow', {
-          body: message,
-          icon: '/vite.svg',
-          tag: `cook-task-${orderId}-${tableNumber}`,
-        });
-
-        // Auto-close notification after 10 seconds
-        setTimeout(() => {
-          notification.close();
-        }, 10000);
-
-        // Handle notification click
-        notification.onclick = () => {
-          window.focus();
-          notification.close();
-        };
-        
-        // Handle notification show event
-        notification.onshow = () => {
-          console.log('[CookDashboard] Browser notification shown successfully');
-        };
-        
-        // Handle notification error event
-        notification.onerror = (error: any) => {
-          console.error('[CookDashboard] Browser notification error:', error);
-        };
-        
-        console.log('[CookDashboard] Browser notification created successfully');
-      } catch (error) {
-        console.error('[CookDashboard] Browser notification failed:', error);
-        if (error instanceof Error) {
-          console.error('[CookDashboard] Error details:', error.message, error.stack);
-        }
-      }
-    } else {
-      console.log('[CookDashboard] Browser notifications not available or not granted. Permission:', currentPermission);
-      console.log('[CookDashboard] Notification API available:', 'Notification' in window);
-    }
-    
-    console.log('[CookDashboard] Browser notification attempt completed');
+    showStaffNotification('ServeNow', {
+      body: `👨‍🍳 New dish assigned to prepare! (Order #${orderId}, Table ${tableNumber})`,
+      tag: `cook-task-${orderId}-${tableNumber}`,
+      icon: '/vite.svg',
+      badge: '/favicon.ico',
+      vibrate: [200, 100, 200],
+      actions: [
+        { action: 'view', title: 'View Task' }
+      ]
+    });
   };
 
   const fetchAssignedDishes = async (cook: Cook) => {
